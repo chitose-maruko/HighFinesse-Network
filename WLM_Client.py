@@ -1,15 +1,15 @@
 # Code to connect to an established server through ethernet
 # Resource for the setting up the server: https://codesource.io/creating-python-socket-server-with-multiple-clients/
+# Resource for pyqtgraph: https://www.pyqtgraph.org/
 
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore, QtGui
+import numpy as np
 import socket
 import time
-import tkinter as tk
 import threading
 import pickle
 import sys
-import os
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # IP address and TCP port of server
 host = '192.168.1.56'
@@ -25,164 +25,133 @@ except socket.error as e:
     print(str(e))
 
 # Set up GUI
-# Resource for GUI code found here: https://realpython.com/python-gui-tkinter/#making-your-applications-interactive
-window = tk.Tk()
-window.title('Wavelength Meter')
-
-# Initialize list which selects which channel to turn on
-selec_list = [0, 0, 0, 0, 0, 0, 0, 0]
-# and list which will contain the received data
-data = ['---', '---', '---', '---', '---', '---', '---', '---',]
-# and list which will contain plottable data
-plottable = [[], [], [], [], [], [], [], []]
-# and list which will contain target wavelengths
-targets = 8*[0]
+app = QtGui.QApplication([])
+window = QtGui.QWidget()
+window.setWindowTitle('Wavelength Meter')
 
 # Set up basic geometry of the GUI window
-window.geometry("1600x800")
-window.rowconfigure([0,1,2,3,4,5,6,7,8,9,10,11], minsize=50, weight=1)
-window.columnconfigure([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], minsize=50, weight=1)
+window.setGeometry(100, 100, 500, 750)
+window.setStyleSheet("background-color: black")
 
-# Change application color
-window.configure(bg='white')
+# Create selectable modes for each channel
+modes = ['Off', 'Wavelength', 'Interferometer', 'Wvl Difference', 'Both Graphs']
 
-# This function allows for constant updating of the GUI
-def start():
-    global t
-    t = threading.Thread(target=update)
-    t.start()    
+# Initialize the list that will control operation mode and exposure time
+# Starting values are Off with 1 ms exposure time
+selec_list = 8*[['Off', '1']]
 
-# This function stops the GUI from updating and then closes it
-end = False
-def stop():
-    global end, ClientSocket, window
-    end = True
+# Create empty lists which will contain data for plotting
+wvl_longdata = 8*[[]]
+int_data = 8*[[]]
 
-# A function to be tied to each check box, merely allows channels to be turned on and off                
-def Ch(n):
-    global selec_list
-    selec_list[n] = not selec_list[n]
-    
-# Create labels to display wavelength output
-lbl_master = 8*[0]
-for i in range(8):
-    lbl_master[i] = tk.Label(master=window, text=f'Channel {i+1}', borderwidth=2, relief="solid", bg='white')
-    
-# Position the labels
-lbl_master[0].grid(row=0, rowspan=2, column=0, columnspan=4, sticky="nsew")
-lbl_master[1].grid(row=0, rowspan=2, column=4, columnspan=4, sticky="nsew")
-lbl_master[2].grid(row=0, rowspan=2, column=8, columnspan=4, sticky="nsew")
-lbl_master[3].grid(row=0, rowspan=2, column=12, columnspan=4, sticky="nsew")
-lbl_master[4].grid(row=3, rowspan=2, column=0, columnspan=4, sticky="nsew")
-lbl_master[5].grid(row=3, rowspan=2, column=4, columnspan=4, sticky="nsew")
-lbl_master[6].grid(row=3, rowspan=2, column=8, columnspan=4, sticky="nsew")
-lbl_master[7].grid(row=3, rowspan=2, column=12, columnspan=4, sticky="nsew")
+# Create array to store target wavelengths
+targets = 8*[0]
 
-# Make a checkbutton to turn the display of each label on or off
-btn_1 = tk.Checkbutton(master=window, text='Ch 1', highlightbackground = 'black', bg='white', command = lambda : Ch(0)).grid(row=2, column=3, sticky="nsew")
-btn_2 = tk.Checkbutton(master=window, text='Ch 2', highlightbackground = 'black', bg='white', command = lambda : Ch(1)).grid(row=2, column=7, sticky="nsew")
-btn_3 = tk.Checkbutton(master=window, text='Ch 3', highlightbackground = 'black', bg='white', command = lambda : Ch(2)).grid(row=2, column=11, sticky="nsew")
-btn_4 = tk.Checkbutton(master=window, text='Ch 4', highlightbackground = 'black', bg='white', command = lambda : Ch(3)).grid(row=2, column=15, sticky="nsew")
-btn_5 = tk.Checkbutton(master=window, text='Ch 5', highlightbackground = 'black', bg='white', command = lambda : Ch(4)).grid(row=5, column=3, sticky="nsew")
-btn_6 = tk.Checkbutton(master=window, text='Ch 6', highlightbackground = 'black', bg='white', command = lambda : Ch(5)).grid(row=5, column=7, sticky="nsew")
-btn_7 = tk.Checkbutton(master=window, text='Ch 7', highlightbackground = 'black', bg='white', command = lambda : Ch(6)).grid(row=5, column=11, sticky="nsew")
-btn_C = tk.Checkbutton(master=window, text='Ch 8', highlightbackground = 'black', bg='white', command = lambda : Ch(7)).grid(row=5, column=15, sticky="nsew")
-
-# Create entry boxes for the target wavelength of each channel
-entry_master = 8*[0]
-for i in range(8):
-    entry_master[i] = tk.Entry(master=window, highlightbackground = 'black')
-
-# Position the entry boxes
-entry_master[0].grid(row=2, column=2, sticky="nsew")
-entry_master[1].grid(row=2, column=6, sticky="nsew")
-entry_master[2].grid(row=2, column=10, sticky="nsew")
-entry_master[3].grid(row=2, column=14, sticky="nsew")
-entry_master[4].grid(row=5, column=2, sticky="nsew")
-entry_master[5].grid(row=5, column=6, sticky="nsew")
-entry_master[6].grid(row=5, column=10, sticky="nsew")
-entry_master[7].grid(row=5, column=14, sticky="nsew")
-
-# Create labels for the entry boxes
+# Initialize widgets for...
+# Wavelength display
+wvl_lbl = 8*[0]
+# Operation mode selection
+menu_master = 8*[0]
+# Target wavelength entry
+tgt_master = 8*[0]
+# Label for target entry
 tgt_lbl = 8*[0]
+# Exposure time entry
+expo_master = 8*[0]
+# Label for exposure time entry
+expo_lbl = 8*[0]
+# One widget per channel
 for i in range(8):
-    tgt_lbl[i] = tk.Label(master=window, text=f'Ch {i+1} Target Wavelength', relief='solid', bg='white')
+    wvl_lbl[i] = QtGui.QLabel('<h2>Channel ' + f'{i+1}' + '</h2>', parent=window)
+    wvl_lbl[i].setStyleSheet('color: white')
+    menu_master[i] = QtGui.QComboBox(parent=window)
+    menu_master[i].setStyleSheet('color: white')
+    menu_master[i].addItems(modes)
+    tgt_master[i] = QtGui.QLineEdit(parent=window)
+    tgt_master[i].setStyleSheet('color: white')
+    tgt_lbl[i] = QtGui.QLabel(f'Ch {i+1} Target Wavelength:', parent=window)
+    tgt_lbl[i].setStyleSheet('color: white')
+    expo_master[i] = QtGui.QLineEdit(parent=window)
+    expo_master[i].setStyleSheet('color: white')
+    expo_lbl[i] = QtGui.QLabel(f'Ch {i+1} Exposure Time:', parent=window)
+    expo_lbl[i].setStyleSheet('color: white')
 
-# Position entry box labels
-tgt_lbl[0].grid(row=2, column=0, columnspan=2, sticky="nsew")
-tgt_lbl[1].grid(row=2, column=4, columnspan=2, sticky="nsew")
-tgt_lbl[2].grid(row=2, column=8, columnspan=2, sticky="nsew")
-tgt_lbl[3].grid(row=2, column=12, columnspan=2, sticky="nsew")
-tgt_lbl[4].grid(row=5, column=0, columnspan=2, sticky="nsew")
-tgt_lbl[5].grid(row=5, column=4, columnspan=2, sticky="nsew")
-tgt_lbl[6].grid(row=5, column=8, columnspan=2, sticky="nsew")
-tgt_lbl[7].grid(row=5, column=12, columnspan=2, sticky="nsew")
+# Create the plot for the difference between measured and target wavelength
+wvl_plot = pg.PlotWidget(parent=window, data=wvl_longdata)
+#Create the plot for the interferometer data
+int_plot = pg.PlotWidget(parent=window, data=int_data)
 
-# Create figure for plotting
-fig = plt.Figure((5,7), dpi=100)
-ax = fig.add_subplot(111)
-graph = FigureCanvasTkAgg(fig, master=window)
-graph.get_tk_widget().grid(row=6, rowspan=6, column = 8, columnspan=7, sticky="nsew")
+# Format the layout of the application
+layout = QtGui.QGridLayout()
+window.setLayout(layout)
 
-# Use a color map to pick the colors used for plotting
-cmap = plt.cm.get_cmap('viridis')
-colors = [None]*8
-for i in range(8):
-    colors[i] = cmap(i/8)
+# Position each of these widgets on the GUI
+for i in range(4):
+    layout.addWidget(wvl_lbl[i], 0, 2*i)
+    layout.addWidget(menu_master[i], 0, 2*i+1)
+    layout.addWidget(tgt_master[i], 1, 2*i+1)
+    layout.addWidget(tgt_lbl[i], 1, 2*i)
+    layout.addWidget(expo_master[i], 2, 2*i+1)
+    layout.addWidget(expo_lbl[i], 2, 2*i)
+for i in range(4,8):
+    layout.addWidget(wvl_lbl[i], 3, 2*i-8)
+    layout.addWidget(menu_master[i], 3, 2*i-7)
+    layout.addWidget(tgt_master[i], 4, 2*i-7)
+    layout.addWidget(tgt_lbl[i], 4, 2*i-8)
+    layout.addWidget(expo_master[i], 5, 2*i-7)
+    layout.addWidget(expo_lbl[i], 5, 2*i-8)
 
-# Create the start button and tie it to the start function
-btn_start = tk.Button(master=window, text='Start', command=start, bg='DarkSeaGreen', fg = 'DarkOliveGreen')
-btn_start.grid(row=10, column=15, sticky="nsew")
+layout.addWidget(wvl_plot, 6, 4, 3, 4)
+layout.addWidget(int_plot, 6, 0, 3, 4)
 
-# Create the stop button and tie it to the stop function       
-btn_stop = tk.Button(master=window, text='Close Window', command=stop, bg='dark salmon', fg = 'dark red')
-btn_stop.grid(row=11, column=15, sticky="nsew")
-
-# This function reads and displays the wavelength in the correct place
-# Also closes the window if 'stop' button is pressed    
+# The function that manages the connection and updates variable with received data
 def update():
-    global selec_list, data, lbl_master, end
     while True:
-        # Pickles and sends selection list
+        # Pickles and sends selction list    
         to_send = pickle.dumps(selec_list)
         ClientSocket.sendall(to_send)
-        # Reads data from server, stores in list
-        msg = ClientSocket.recv(1024)
-        data = pickle.loads(msg)
+        # Reads in the length of the message to be received
+        length = ClientSocket.recv(8).decode()
+        # Reads data from server, stores in msg
+        msg = []
+        while len(b"".join(msg)) < int(length):
+            temp = ClientSocket.recv(8192)
+            msg.append(temp)
+        # Unpickle msg
+        data = pickle.loads(b"".join(msg))
+        # Store wavelength and interferometer data in separate lists
+        wvl_data = data[0]
+        int_data = data[1]
         for i in range(8):
-            # Updates the display for each channel
-            lbl_master[i]['text'] = f'{data[i]} nm'
-            # Reads out user entered target wavelengths
-            targets[i] = entry_master[i].get()
-            # Updates the plottable data for selected channels
-            if data[i] != '---':
-                plottable[i].append(data[i])
-                try:
-                    # Changes plottable data to the difference between measured and desired wavelength
-                    plottable[i][-1] = float(plottable[i][-1])  - float(targets[i])
-                except:
-                    plottable[i] = plottable[i]
-                else:
-                    for k in range(len(plottable[i])):
-                        if plottable[i][k] > 0:
-                            ax.cla()
-                            ax.grid()
-                            ax.set_xlabel('Samples')
-                            ax.set_ylabel('nm')
-                            ax.set_title(r'$\Delta \lambda$')
-                            ax.plot(plottable[i], c=colors[i])
-                            graph.draw()
-            if len(plottable[i]) > 30:
-                plottable[i].pop(0)
-        if end:
+            # Update selec_list
+            selec_list[i][0] = menu_master[i].currentText()
+            selec_list[i][1] = expo_master[i].text()
+            # Update labels to display wavelength
+            wvl_lbl[i].setText(f'Ch1: {wvl_data[i]} nm')
+            # Store entered target wavelengths
+            targets[i] = tgt_master[i].text()
+            # If the received wavelength data is a number, add it to the array to be plotted
+            try:
+                diff = float(wvl_data[i]) - float(targets[i])
+            except:
+                pass
+            else:
+                wvl_longdata[i].append(diff)
+            # Stop wvl_longdata from growing indefinitely
+            if len(wvl_longdata[i]) > 30:
+                wvl_longdata[i].pop(0)
+        if not window.isVisible():
             break
-    ClientSocket.close()
-    window.destroy()
-    sys.exit()
 
+# Start a thread to run the update function
+t = threading.Thread(target=update)
+t.start() 
+
+# Set the layout
+#window.setLayout(layout)
 # Run the GUI
-window.mainloop()
+window.show()
 
-# Close the entire program once window closes
-print('Program closing')
-os._exit(0)
+# Close the entire program and socket once window closes
+ClientSocket.close()
+sys.exit(app.exec_())
