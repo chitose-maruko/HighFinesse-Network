@@ -1,13 +1,13 @@
 # Code to connect to an established server through ethernet
 # Resource for the setting up the server: https://codesource.io/creating-python-socket-server-with-multiple-clients/
 # Resource for pyqtgraph: https://www.pyqtgraph.org/
+# Resource for QThread: https://realpython.com/python-pyqt-qthread/#freezing-a-gui-with-long-running-tasks
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 import socket
 import time
-import threading
 import pickle
 import sys
 
@@ -24,134 +24,178 @@ try:
 except socket.error as e:
     print(str(e))
 
+# Define global variables which will reflect the desired mode and exposure time of each channel
+# Starting values are Off with 1 ms exposure time
+selec_list = [['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1']]
+
+# Define another global variable to hold the target wavlengths, initialized to 0
+targets = [0, 0, 0, 0, 0, 0, 0, 0]
+
+class Transmission(QtCore.QObject):
+    # Create signal to send the data for plotting
+    data = QtCore.pyqtSignal(list)
+    
+    # The function that manages the connection and updates variable with received data
+    def update(self):
+        # Create list to store the wavelength-target data for plotting
+        wvl_longdata = [[], [], [], [], [], [], [], []]
+    
+        while True:
+            #print(selec_list[0])
+            # Pickles and sends selction list    
+            to_send = pickle.dumps(selec_list)
+            ClientSocket.sendall(to_send)
+            # Reads in the length of the message to be received
+            length = ClientSocket.recv(8).decode()
+            # Reads data from server, stores in msg
+            msg = []
+            while len(b"".join(msg)) < int(length):
+                temp = ClientSocket.recv(8192)
+                msg.append(temp)
+            # Unpickle msg
+            data = pickle.loads(b"".join(msg))
+            # Store wavelength and interferometer data in separate lists
+            wvl_data = data[0]
+            int_data = data[1]
+
+            for i in range(8):
+                # Only do this step if the user wants the plot
+                if selec_list[i][0] == 'Wvl Difference' or selec_list[i][0] == 'Both Graphs':
+                    # Try to find difference between measured and target wavelength
+                    try:
+                        diff = float(wvl_data[i]) - float(targets[i])
+                    except: 
+                        pass
+                    else:
+                        wvl_longdata[i].append(diff)
+                    # Stop wvl_longdata from growing indefinitely
+                    if len(wvl_longdata[i]) > 30:
+                        wvl_longdata[i].pop(0)
+                else:
+                    pass
+                    
+            self.data.emit([int_data, wvl_longdata, wvl_data])
+
+class Window(QtGui.QWidget):
+    # Create selectable modes for each channel
+    modes = ['Off', 'Pause Graphs', 'Interferometer', 'Wvl Difference', 'Both Graphs']
+    
+    # A list of RGB color codes to differentiate channels
+    color = [(255,160,122),(238,232,170),(152,251,152),(72,209,204),(186,85,211),(255,192,203),(188,143,143),(220,20,60)]
+    
+    # Create signals to send the selections of operation mode and exposure time
+    operation = QtCore.pyqtSignal(list)
+    exposure = QtCore.pyqtSignal(list)
+    
+    def __init__(self, *args, **kwargs):
+        super(Window, self).__init__(*args, **kwargs)
+        
+        self.setWindowTitle('Wavelength Meter')
+        self.setGeometry(100, 100, 500, 750)
+        self.setStyleSheet("background-color: black")
+        # Initialize widgets for...
+        # Wavelength display
+        self.wvl_lbl = 8*[0]
+        # Operation mode selection
+        self.menu_master = 8*[0]
+        # Target wavelength entry
+        self.tgt_master = 8*[0]
+        # Label for target entry
+        tgt_lbl = 8*[0]
+        # Exposure time entry
+        self.expo_master = 8*[0]
+        # Label for exposure time entry
+        expo_lbl = 8*[0]
+        # Loop over channels
+        for i in range(8):
+            self.wvl_lbl[i] = QtGui.QLabel('<h4>Channel ' + f'{i+1}' + '</h4>', parent=self)
+            self.wvl_lbl[i].setStyleSheet(f'color: rgb{self.color[i]}')
+            self.wvl_lbl[i].setFixedWidth(225)
+            self.menu_master[i] = QtGui.QComboBox(parent=self)
+            self.menu_master[i].setStyleSheet('color: white')
+            self.menu_master[i].addItems(self.modes)
+            self.tgt_master[i] = QtGui.QLineEdit(parent=self)
+            self.tgt_master[i].setStyleSheet('color: white')
+            tgt_lbl[i] = QtGui.QLabel(f'Ch {i+1} Target Wavelength (nm):', parent=self)
+            tgt_lbl[i].setStyleSheet('color: white')
+            self.expo_master[i] = QtGui.QLineEdit(parent=self)
+            self.expo_master[i].setText(selec_list[i][1])
+            self.expo_master[i].setStyleSheet('color: white')
+            expo_lbl[i] = QtGui.QLabel(f'Ch {i+1} Exposure Time (ms):', parent=self)
+            expo_lbl[i].setStyleSheet('color: white')
+
+        # Create the widgets for plotting
+        self.wvl = pg.PlotWidget(parent=self)
+        self.wvl.setTitle('Wavelength Difference')
+        self.wvl.addLegend()
+        self.wvl.showAxis('bottom', False)
+        self.wvl.setLabel('left', 'nm')
+        self.inter = pg.PlotWidget(parent=self)
+        self.inter.setTitle('Interferometer')
+        self.inter.addLegend()
+                                            
+        # Format the layout of the application
+        layout = QtGui.QGridLayout()
+        self.setLayout(layout)
+	
+        # Position each of these widgets on the GUI
+        for i in range(4):
+            layout.addWidget(self.wvl_lbl[i], 0, 2*i)
+            layout.addWidget(self.menu_master[i], 0, 2*i+1)
+            layout.addWidget(self.tgt_master[i], 1, 2*i+1)
+            layout.addWidget(tgt_lbl[i], 1, 2*i)
+            layout.addWidget(self.expo_master[i], 2, 2*i+1)
+            layout.addWidget(expo_lbl[i], 2, 2*i)
+        for i in range(4,8):
+            layout.addWidget(self.wvl_lbl[i], 3, 2*i-8)
+            layout.addWidget(self.menu_master[i], 3, 2*i-7)
+            layout.addWidget(self.tgt_master[i], 4, 2*i-7)
+            layout.addWidget(tgt_lbl[i], 4, 2*i-8)
+            layout.addWidget(self.expo_master[i], 5, 2*i-7)
+            layout.addWidget(expo_lbl[i], 5, 2*i-8)
+
+        layout.addWidget(self.wvl, 6, 4, 3, 4)
+        layout.addWidget(self.inter, 6, 0, 3, 4)
+            
+        self.worker_thread()
+           
+    def gui_update(self, data):
+        
+        self.wvl.clear()
+        self.inter.clear()   
+        for i in range(8):
+            self.wvl_lbl[i].setText('<h4>Ch '+f'{i+1}: {data[2][i]} nm </h4>')
+            # Update selec_list '<h2>Channel ' + f'{i+1}' + '</h2>'
+            selec_list[i][0] = self.menu_master[i].currentText()
+            selec_list[i][1] = self.expo_master[i].text()
+            # Store entered target wavelengths
+            #print(data[0][0])
+            targets[i] = self.tgt_master[i].text()
+            if selec_list[i][0] != 'Off':
+                try:
+                    self.wvl.plot(data[1][i], name=f'Ch{i+1}', pen=self.color[i])
+                except:
+                    pass
+                try:
+                    self.inter.plot(data[0][i], name=f'Ch{i+1}', pen=self.color[i])
+                except:
+                    pass
+                
+    def worker_thread(self):
+        self.thread = QtCore.QThread()
+        self.worker = Transmission()
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.update)
+        self.worker.data.connect(self.gui_update)
+        self.thread.start()
+        
+
 # Set up GUI
 app = QtGui.QApplication([])
-window = QtGui.QWidget()
-window.setWindowTitle('Wavelength Meter')
 
-# Set up basic geometry of the GUI window
-window.setGeometry(100, 100, 500, 750)
-window.setStyleSheet("background-color: black")
-
-# Create selectable modes for each channel
-modes = ['Off', 'Wavelength', 'Interferometer', 'Wvl Difference', 'Both Graphs']
-
-# Initialize the list that will control operation mode and exposure time
-# Starting values are Off with 1 ms exposure time
-selec_list = 8*[['Off', '1']]
-
-# Create empty lists which will contain data for plotting
-wvl_longdata = 8*[[]]
-int_data = 8*[[]]
-
-# Create array to store target wavelengths
-targets = 8*[0]
-
-# Initialize widgets for...
-# Wavelength display
-wvl_lbl = 8*[0]
-# Operation mode selection
-menu_master = 8*[0]
-# Target wavelength entry
-tgt_master = 8*[0]
-# Label for target entry
-tgt_lbl = 8*[0]
-# Exposure time entry
-expo_master = 8*[0]
-# Label for exposure time entry
-expo_lbl = 8*[0]
-# One widget per channel
-for i in range(8):
-    wvl_lbl[i] = QtGui.QLabel('<h2>Channel ' + f'{i+1}' + '</h2>', parent=window)
-    wvl_lbl[i].setStyleSheet('color: white')
-    menu_master[i] = QtGui.QComboBox(parent=window)
-    menu_master[i].setStyleSheet('color: white')
-    menu_master[i].addItems(modes)
-    tgt_master[i] = QtGui.QLineEdit(parent=window)
-    tgt_master[i].setStyleSheet('color: white')
-    tgt_lbl[i] = QtGui.QLabel(f'Ch {i+1} Target Wavelength:', parent=window)
-    tgt_lbl[i].setStyleSheet('color: white')
-    expo_master[i] = QtGui.QLineEdit(parent=window)
-    expo_master[i].setStyleSheet('color: white')
-    expo_lbl[i] = QtGui.QLabel(f'Ch {i+1} Exposure Time:', parent=window)
-    expo_lbl[i].setStyleSheet('color: white')
-
-# Create the plot for the difference between measured and target wavelength
-wvl_plot = pg.PlotWidget(parent=window, data=wvl_longdata)
-#Create the plot for the interferometer data
-int_plot = pg.PlotWidget(parent=window, data=int_data)
-
-# Format the layout of the application
-layout = QtGui.QGridLayout()
-window.setLayout(layout)
-
-# Position each of these widgets on the GUI
-for i in range(4):
-    layout.addWidget(wvl_lbl[i], 0, 2*i)
-    layout.addWidget(menu_master[i], 0, 2*i+1)
-    layout.addWidget(tgt_master[i], 1, 2*i+1)
-    layout.addWidget(tgt_lbl[i], 1, 2*i)
-    layout.addWidget(expo_master[i], 2, 2*i+1)
-    layout.addWidget(expo_lbl[i], 2, 2*i)
-for i in range(4,8):
-    layout.addWidget(wvl_lbl[i], 3, 2*i-8)
-    layout.addWidget(menu_master[i], 3, 2*i-7)
-    layout.addWidget(tgt_master[i], 4, 2*i-7)
-    layout.addWidget(tgt_lbl[i], 4, 2*i-8)
-    layout.addWidget(expo_master[i], 5, 2*i-7)
-    layout.addWidget(expo_lbl[i], 5, 2*i-8)
-
-layout.addWidget(wvl_plot, 6, 4, 3, 4)
-layout.addWidget(int_plot, 6, 0, 3, 4)
-
-# The function that manages the connection and updates variable with received data
-def update():
-    while True:
-        # Pickles and sends selction list    
-        to_send = pickle.dumps(selec_list)
-        ClientSocket.sendall(to_send)
-        # Reads in the length of the message to be received
-        length = ClientSocket.recv(8).decode()
-        # Reads data from server, stores in msg
-        msg = []
-        while len(b"".join(msg)) < int(length):
-            temp = ClientSocket.recv(8192)
-            msg.append(temp)
-        # Unpickle msg
-        data = pickle.loads(b"".join(msg))
-        # Store wavelength and interferometer data in separate lists
-        wvl_data = data[0]
-        int_data = data[1]
-        for i in range(8):
-            # Update selec_list
-            selec_list[i][0] = menu_master[i].currentText()
-            selec_list[i][1] = expo_master[i].text()
-            # Update labels to display wavelength
-            wvl_lbl[i].setText(f'Ch1: {wvl_data[i]} nm')
-            # Store entered target wavelengths
-            targets[i] = tgt_master[i].text()
-            # If the received wavelength data is a number, add it to the array to be plotted
-            try:
-                diff = float(wvl_data[i]) - float(targets[i])
-            except:
-                pass
-            else:
-                wvl_longdata[i].append(diff)
-            # Stop wvl_longdata from growing indefinitely
-            if len(wvl_longdata[i]) > 30:
-                wvl_longdata[i].pop(0)
-        if not window.isVisible():
-            break
-
-# Start a thread to run the update function
-t = threading.Thread(target=update)
-t.start() 
-
-# Set the layout
-#window.setLayout(layout)
 # Run the GUI
+window = Window()
 window.show()
 
-# Close the entire program and socket once window closes
-ClientSocket.close()
+# Close the entire program once window closes
 sys.exit(app.exec_())
