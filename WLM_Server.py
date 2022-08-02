@@ -32,11 +32,14 @@ to_send = [Wavelength, Interferometer]
 def client_handler(connection):
     while True:
         data = connection.recv(4096)
-        #print(data)
         selec_list = pickle.loads(data)
+        #print(selec_list)
         for n in range(8):
             # Set the exposure times accoring to selec_list
-            wlmData.dll.SetExposureNum(n+1, 1, int(selec_list[n][1]))
+            try:
+                wlmData.dll.SetExposureNum(n+1, 1, int(selec_list[n][1]))
+            except:
+                pass
             # Manage sending the wavelength data
             if selec_list[n][0] != 'Off':
                 wlmData.dll.SetSwitcherSignalStates(n+1, 1, 1)
@@ -48,9 +51,10 @@ def client_handler(connection):
                 else:
                     Wavelength[n] = f'{test_wavelength}'
                 to_send[0] = Wavelength
-            elif selec_list[n] == 0:
+            elif selec_list[n][0] == 'Off':
                 wlmData.dll.SetSwitcherSignalStates(n+1, 0, 0)
                 Wavelength[n] = '---'
+                Interferometer[n] = []
             # Manage sending the interferometer data
             if selec_list[n][0] == 'Interferometer' or selec_list[n][0] == 'Both Graphs':
                 i = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
@@ -59,7 +63,6 @@ def client_handler(connection):
                 X = wlmData.dll.GetPatternNum(n+1, wlmConst.cSignal1Interferometers)
                 wlmData.dll.GetPatternDataNum(n+1, wlmConst.cSignalAnalysisX, X)
                 Interferometer[n] = list(np.ctypeslib.as_array(X, (i//ii,)))
-                print(type(Interferometer[n]))
                 to_send[1] = Interferometer
         connection.sendall(f'{len(pickle.dumps(to_send))}'.encode())
         time.sleep(0.5)
