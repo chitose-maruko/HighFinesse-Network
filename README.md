@@ -17,7 +17,7 @@ This file connects to the server that has been started on another computer by ru
 This program must be run on a computer which is connected via USB to the wavemeter. It also requires the software from HighFinesse to be downloaded, which can be found on the unit's SharePoint. Once this software is downloaded, importing wlmData, wlmConst, and loading in the wlmData.dll file should work fine, as these are all included in the file in SharePoint. This file imports the Python librairies socket, time, threading, time, sys, pickle, and numpy, so ensure the correct version of those is available on the computer.  Using pyqtgraph may also require the user to install PyQt5.
 
 ## WLM_Client.py
-This program should not be directly connected to the wavemeter and does not need to have anything from HighFinesse downloaded. It uses the Python librairies pyqtgraph, numpy, socket, time, pickle, and sys, so compatible versions of these should be downloaded to run the code. 
+This program should not be directly connected to the wavemeter and does not need to have anything from HighFinesse downloaded. It uses the Python librairies pyqtgraph, socket, pickle, and sys, so compatible versions of these should be downloaded to run the code. 
 
 # Basic Troubleshooting
 
