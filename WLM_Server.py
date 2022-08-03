@@ -70,9 +70,9 @@ def client_handler(connection):
                 to_send[1] = Interferometer
         # Send the acquired data
         connection.sendall(f'{len(pickle.dumps(to_send))}'.encode())
-        # Dictate the inherent server time delay
-        time.sleep(0.5)
         connection.sendall(pickle.dumps(to_send))
+        # Specified wait time to allow for multiple clients
+        time.sleep(0.5)
 
 # Create a function which will connect to clients and assign these be managed in individual threads
 def accept_connections(ServerSocket):
