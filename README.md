@@ -29,6 +29,6 @@ Any problems with wlmData functions can be best answered by consulting the wavem
 If this file prints 'Waiting for connection' and never prints 'Connected!', there is some issue with the network connection. Things to check: ensure WLM_Server.py is running (it will say 'Server is listening on TCP Port:'), ensure the computer running WLM_Server.py is connected to the same network as the on running WLM_Client.py, and ensure the IP and TCP variables in WLM_Client.py match those in WLM_Server.py. 
 
 # Resources
-Shows socket library in a similar context: https://github.com/realpython/materials/tree/master/python-sockets-tutorial <br>
+Shows socket library in a similar context: https://codesource.io/creating-python-socket-server-with-multiple-clients/ <br>
 pyqtgraph library documentation: https://www.pyqtgraph.org/ <br>
 Shows QThread in a similar context: https://realpython.com/python-pyqt-qthread/#freezing-a-gui-with-long-running-tasks <br>
