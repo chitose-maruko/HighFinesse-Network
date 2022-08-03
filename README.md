@@ -1,6 +1,5 @@
 # EQuIP-HighFinesse-Network
-This project was set up within the EQuIP Unit at OIST. The goal is to allow workers in the lab to use the HighFinesse wavemeter on any computer connected to the local network,
-rather than just the computer directly connected to the wavemeter. The files are all written in Python. 
+This project was set up within the EQuIP Unit at OIST. The goal is to allow workers in the lab to use the HighFinesse wavemeter on any computer connected to the local network, rather than just the computer directly connected to the wavemeter. The files are all written in Python. 
 
 ## Manual.pdf
 This file saved is the user's manual for the wavemeter this project was initially designed for (WS 8 model), which also contains useful information on the functions provided by HighFinesse which allow for interaction with the wavemeter. 
@@ -23,13 +22,13 @@ This program should not be directly connected to the wavemeter and does not need
 # Basic Troubleshooting
 
 ## WLM_Server.py
-If this file has the wrong path for wlmData.dll, it will let you know. Just find this file on the compute (it should have been downloaded with the HighFinesse software) and update the path accordingly.
+If this file has the wrong path for wlmData.dll, it will let you know. Just find this file on the compute (it should have been downloaded with the HighFinesse software) and update the path accordingly.<br>
 Any problems with wlmData functions can be best answered by consulting the wavemeter manual.
 
 ## WLM_Client.py
 If this file prints 'Waiting for connection' and never prints 'Connected!', there is some issue with the network connection. Things to check: ensure WLM_Server.py is running (it will say 'Server is listening on TCP Port:'), ensure the computer running WLM_Server.py is connected to the same network as the on running WLM_Client.py, and ensure the IP and TCP variables in WLM_Client.py match those in WLM_Server.py. 
 
 # Resources
-Shows socket library in a similar context: https://github.com/realpython/materials/tree/master/python-sockets-tutorial
-pyqtgraph library documentation: https://www.pyqtgraph.org/
-Shows QThread in a similar context: https://realpython.com/python-pyqt-qthread/#freezing-a-gui-with-long-running-tasks
+Shows socket library in a similar context: https://github.com/realpython/materials/tree/master/python-sockets-tutorial <br>
+pyqtgraph library documentation: https://www.pyqtgraph.org/ <br>
+Shows QThread in a similar context: https://realpython.com/python-pyqt-qthread/#freezing-a-gui-with-long-running-tasks <br>
