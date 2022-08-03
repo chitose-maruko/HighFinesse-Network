@@ -2,9 +2,7 @@
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
-import numpy as np
 import socket
-import time
 import pickle
 import sys
 
@@ -37,7 +35,7 @@ class Transmission(QtCore.QObject):
     # The function that manages the connection and updates variable with received data
     def update(self):
         # Create list to store the wavelength-target difference data for plotting
-        wvl_longdata = [[], [], [], [], [], [], [], []]
+        wvl_difference = [[], [], [], [], [], [], [], []]
     
         while True:
             # Pickles and sends selection list    
@@ -66,14 +64,14 @@ class Transmission(QtCore.QObject):
                     except: 
                         pass
                     else:
-                        wvl_longdata[i].append(diff)
+                        wvl_difference[i].append(diff)
                     # Stop wvl_longdata from growing indefinitely
-                    if len(wvl_longdata[i]) > 30:
-                        wvl_longdata[i].pop(0)
+                    if len(wvl_difference[i]) > 30:
+                        wvl_difference[i].pop(0)
                 else:
                     pass
             # Send the data that has just been stored to another function for further operation        
-            self.data.emit([int_data, wvl_longdata, wvl_data])
+            self.data.emit([int_data, wvl_difference, wvl_data])
 
 	
 # This class sets up and runs the GUI, while using the Transmission class in a separate thread
