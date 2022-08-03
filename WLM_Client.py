@@ -1,7 +1,4 @@
 # Code to connect to an established server through ethernet
-# Resource for the setting up the server: https://codesource.io/creating-python-socket-server-with-multiple-clients/
-# Resource for pyqtgraph: https://www.pyqtgraph.org/
-# Resource for QThread: https://realpython.com/python-pyqt-qthread/#freezing-a-gui-with-long-running-tasks
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui

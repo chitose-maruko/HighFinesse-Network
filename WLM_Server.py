@@ -1,5 +1,4 @@
-# Allows server connection to multiple clients
-# Based on the code found here: https://github.com/realpython/materials/tree/master/python-sockets-tutorial
+# Allows server connection to multiple clients, as well as wavemeter interaction
 
 import socket
 import threading
@@ -71,6 +70,7 @@ def client_handler(connection):
                 to_send[1] = Interferometer
         # Send the acquired data
         connection.sendall(f'{len(pickle.dumps(to_send))}'.encode())
+        # Dictate the inherent server time delay
         time.sleep(0.5)
         connection.sendall(pickle.dumps(to_send))
 
