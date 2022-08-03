@@ -34,8 +34,8 @@ class Transmission(QtCore.QObject):
     
     # The function that manages the connection and updates variable with received data
     def update(self):
-        # Create list to store the wavelength-target difference data for plotting
-        wvl_difference = [[], [], [], [], [], [], [], []]
+        # Create list to store the wavelength error data for plotting
+        wvl_error = [[], [], [], [], [], [], [], []]
     
         while True:
             # Pickles and sends selection list    
@@ -58,27 +58,27 @@ class Transmission(QtCore.QObject):
 
 	    # Conditionally calculate the difference between measured and target wavelength
             for i in range(8):
-                if selec_list[i][0] == 'Wvl Difference' or selec_list[i][0] == 'Both Graphs':
+                if selec_list[i][0] == 'Wvl Error' or selec_list[i][0] == 'Both Graphs':
                     try:
                         diff = float(wvl_data[i]) - float(targets[i])
                     except: 
                         pass
                     else:
-                        wvl_difference[i].append(diff)
+                        wvl_error[i].append(diff)
                     # Stop wvl_longdata from growing indefinitely
-                    if len(wvl_difference[i]) > 30:
-                        wvl_difference[i].pop(0)
+                    if len(wvl_error[i]) > 30:
+                        wvl_error[i].pop(0)
                 else:
                     pass
             # Send the data that has just been stored to another function for further operation        
-            self.data.emit([int_data, wvl_difference, wvl_data])
+            self.data.emit([int_data, wvl_error, wvl_data])
 
 	
 # This class sets up and runs the GUI, while using the Transmission class in a separate thread
 # to interact with the server
 class Window(QtGui.QWidget):
     # Create selectable modes for each channel
-    modes = ['Off', 'Pause Graphs', 'Interferometer', 'Wvl Difference', 'Both Graphs']
+    modes = ['Off', 'Pause Graphs', 'Interferometer', 'Wvl Error', 'Both Graphs']
     
     # A list of RGB color codes to differentiate channels
     color = [(255,160,122),(238,232,170),(152,251,152),(72,209,204),(186,85,211),(255,192,203),(188,143,143),(220,20,60)]
@@ -122,10 +122,10 @@ class Window(QtGui.QWidget):
             expo_lbl[i] = QtGui.QLabel(f'Ch {i+1} Exposure Time (ms):', parent=self)
             expo_lbl[i].setStyleSheet('color: white')
 
-        # Create the widgets for plotting
-	# Wavelength Difference plot
+    # Create the widgets for plotting
+	# Wavelength Error plot
         self.wvl = pg.PlotWidget(parent=self)
-        self.wvl.setTitle('Wavelength Difference')
+        self.wvl.setTitle('Wavelength Error')
         self.wvl.addLegend()
         self.wvl.showAxis('bottom', False)
         self.wvl.setLabel('left', 'nm')
