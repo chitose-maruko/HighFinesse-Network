@@ -1,5 +1,5 @@
 # EQuIP-HighFinesse-Network
-This project was set up within the EQuIP Unit at OIST. The goal is to allow workers in the lab to use the HighFinesse wavemeter on any computer connected to the local network, rather than just the computer directly connected to the wavemeter. The files are all written in Python. 
+This project was set up within the EQuIP Unit at OIST. The goal is to allow workers in the lab to use the HighFinesse wavemeter on any computer connected to the local network, rather than just the computer directly connected to the wavemeter. The files are all written in Python 3.8. 
 
 ## Manual.pdf
 This file saved is the user's manual for the wavemeter this project was initially designed for (WS 8 model), which also contains useful information on the functions provided by HighFinesse which allow for interaction with the wavemeter. 
