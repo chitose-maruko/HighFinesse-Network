@@ -5,6 +5,7 @@ from pyqtgraph.Qt import QtCore, QtGui
 import socket
 import pickle
 import sys
+import time
 
 # IP address and TCP port of server
 host = '192.168.1.56'
@@ -19,9 +20,10 @@ try:
 except socket.error as e:
     print(str(e))
 
-# Define global variable which will store the desired mode and exposure time of each channel
-# Starting values are Off with 1 ms exposure time
-selec_list = [['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1'], ['Off', '1']]
+# Define global variable which will store the desired mode, selected exposure time of each channel, 
+# and the PID output for each channel
+# Starting values are Off with 1 ms exposure time and 0.0 for PID output
+selec_list = [['Off', '1', None], ['Off', '1', None], ['Off', '1', None], ['Off', '1', None], ['Off', '1', None], ['Off', '1', None], ['Off', '1', None], ['Off', '1', None]]
 
 # Define another global variable to hold the target wavelengths, initialized to 0
 targets = [0, 0, 0, 0, 0, 0, 0, 0]
@@ -36,19 +38,26 @@ class Transmission(QtCore.QObject):
     def update(self):
         # Create list to store the wavelength error data for plotting
         wvl_error = [[], [], [], [], [], [], [], []]
-    
+        
+        # Initialize integral for PID to zero
+        integral = 0.0
+
         while True:
+            # Initial time measurement
+            ti = time.perf_counter()
+            
             # Pickles and sends selection list    
             to_send = pickle.dumps(selec_list)
             ClientSocket.sendall(to_send)
             # Reads in the length of the message to be received
             length = ClientSocket.recv(8).decode()
-            
+
             msg = []
-	    # Reads data sent from the host, stores in msg
+	        # Reads data sent from the host, stores in msg
             while len(b"".join(msg)) < int(length):
                 temp = ClientSocket.recv(8192)
                 msg.append(temp)
+
             # Unpickle msg
             data = pickle.loads(b"".join(msg))
 
@@ -70,8 +79,27 @@ class Transmission(QtCore.QObject):
                         wvl_error[i].pop(0)
                 else:
                     pass
+                
+            # Parameters for PID
+            Kp = 1.0
+            Ki = 1.0
+            Kd = 1.0
+            dt = time.perf_counter() - ti
+
+            # Calculate the PID function output
+            for i in range(8):
+                    try:
+                        integral += wvl_error[i][-1]*dt
+                        derivative = (wvl_error[i][-1] - wvl_error[i][-2])/dt
+                        pid_out = Kp*wvl_error[i][-1] + Ki*integral + Kd*derivative
+                        selec_list[i][2] = pid_out
+
+                    except:
+                        pass
+
             # Send the data that has just been stored to another function for further operation        
             self.data.emit([int_data, wvl_error, wvl_data])
+
 
 	
 # This class sets up and runs the GUI, while using the Transmission class in a separate thread
