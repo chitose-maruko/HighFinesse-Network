@@ -8,6 +8,8 @@ import wlmConst
 import sys
 import pickle
 import numpy as np
+import nidaqmx
+from nidaqmx import stream_readers, stream_writers
 
 # Load in the DLL provided by HighFinesse
 DLL_PATH = "wlmData.dll"
@@ -37,44 +39,70 @@ def client_handler(connection):
         data = connection.recv(4096)
         selec_list = pickle.loads(data)
         
-        for n in range(8):
+        for i in range(8):
             # Set the exposure times accoring to selec_list
             try:
-                wlmData.dll.SetExposureNum(n+1, 1, int(selec_list[n][1]))
+                wlmData.dll.SetExposureNum(i+1, 1, int(selec_list[i][1]))
             except:
                 pass
+
             # Manage sending the wavelength data
-            if selec_list[n][0] != 'Off':
-                wlmData.dll.SetSwitcherSignalStates(n+1, 1, 1)
-                test_wavelength = wlmData.dll.GetWavelengthNum(n+1, 0)
+            if selec_list[i][0] != 'Off':
+                wlmData.dll.SetSwitcherSignalStates(i+1, 1, 1)
+                test_wavelength = wlmData.dll.GetWavelengthNum(i+1, 0)
                 if test_wavelength == wlmConst.ErrOutOfRange:
-                    Wavelength[n] = 'Error: Out of Range'
+                    Wavelength[i] = 'Error: Out of Range'
                 elif test_wavelength <= 0:
-                    Wavelength[n] = f'Error code: {test_wavelength}'
+                    Wavelength[i] = f'Error code: {test_wavelength}'
                 else:
-                    Wavelength[n] = f'{test_wavelength}'
+                    Wavelength[i] = f'{test_wavelength}'
                 to_send[0] = Wavelength
             # Don't bother reading the wavelength if the client doesn't request it
-            elif selec_list[n][0] == 'Off':
-                wlmData.dll.SetSwitcherSignalStates(n+1, 0, 0)
-                Wavelength[n] = '---'
-                Interferometer[n] = []
+            elif selec_list[i][0] == 'Off':
+                wlmData.dll.SetSwitcherSignalStates(i+1, 0, 0)
+                Wavelength[i] = '---'
+                Interferometer[i] = []
+
             # Manage sending the interferometer data
-            if selec_list[n][0] == 'Interferometer' or selec_list[n][0] == 'Both Graphs':
-                i = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
-                ii = wlmData.dll.GetPatternItemSize(wlmConst.cSignal1Interferometers)
+            if selec_list[i][0] == 'Interferometer' or selec_list[i][0] == 'Both Graphs':
+                n = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
+                nn = wlmData.dll.GetPatternItemSize(wlmConst.cSignal1Interferometers)
                 wlmData.dll.SetPattern(wlmConst.cSignal1Interferometers, wlmConst.cPatternEnable)
-                X = wlmData.dll.GetPatternNum(n+1, wlmConst.cSignal1Interferometers)
-                wlmData.dll.GetPatternDataNum(n+1, wlmConst.cSignalAnalysisX, X)
-                Interferometer[n] = list(np.ctypeslib.as_array(X, (i//ii,)))
+                X = wlmData.dll.GetPatternNum(i+1, wlmConst.cSignal1Interferometers)
+                wlmData.dll.GetPatternDataNum(i+1, wlmConst.cSignalAnalysisX, X)
+                Interferometer[i] = list(np.ctypeslib.as_array(X, (n//nn,)))
                 to_send[1] = Interferometer
+
+            # Change output voltage according to PID output
+            try:
+                pid_out = selec_list[i][2]
+                with nidaqmx.Task() as task:
+                    task.ao_channels.add_ao_voltage_chan("Dev1/ao0")
+                    task.ao_channels.add_ao_voltage_chan("Dev1/ao1")
+
+                    input = np.array([pid_out, pid_out/2])
+
+                    stream_writers.AnalogMultiChannelWriter(task.out_stream, auto_start=True).write_one_sample(input)
+
+                with nidaqmx.Task() as task:
+
+                    task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
+                    task.ai_channels.add_ai_voltage_chan("Dev1/ai1")
+
+                    read = np.array([0.0, 0.0])
+                    task.start()
+                    stream_readers.AnalogMultiChannelReader(task.in_stream).read_one_sample(read)
+            except:
+                pass
+
+
         # Send the acquired data
         connection.sendall(f'{len(pickle.dumps(to_send))}'.encode())
         connection.sendall(pickle.dumps(to_send))
         # Specified wait time to allow for multiple clients
         time.sleep(0.5)
 
-# Create a function which will connect to clients and assign these be managed in individual threads
+# Create a function which will connect to clients and assign these to be managed in individual threads
 def accept_connections(ServerSocket):
     Client, address = ServerSocket.accept()
     print('Connected to: ' + address[0] + ':' + str(address[1]))
