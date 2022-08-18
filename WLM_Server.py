@@ -73,15 +73,17 @@ def client_handler(connection):
                 Interferometer[i] = list(np.ctypeslib.as_array(X, (n//nn,)))
                 to_send[1] = Interferometer
 
-            # Change output voltage according to PID output
+            # Try to change output voltage on the NI device according to PID output
             try:
                 pid_out = selec_list[i][2]
                 with nidaqmx.Task() as task:
+                    # Add in the two available channels
                     task.ao_channels.add_ao_voltage_chan("Dev1/ao0")
                     task.ao_channels.add_ao_voltage_chan("Dev1/ao1")
 
                     input = np.array([pid_out, pid_out])
-
+                    
+                    # Set the voltage to whatever values are specified in the input array
                     stream_writers.AnalogMultiChannelWriter(task.out_stream, auto_start=True).write_one_sample(input)
 
             except:
