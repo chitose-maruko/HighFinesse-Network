@@ -9,7 +9,7 @@ import sys
 import pickle
 import numpy as np
 import nidaqmx
-from nidaqmx import stream_readers, stream_writers
+from nidaqmx import stream_writers
 
 # Load in the DLL provided by HighFinesse
 DLL_PATH = "wlmData.dll"
@@ -80,21 +80,12 @@ def client_handler(connection):
                     task.ao_channels.add_ao_voltage_chan("Dev1/ao0")
                     task.ao_channels.add_ao_voltage_chan("Dev1/ao1")
 
-                    input = np.array([pid_out, pid_out/2])
+                    input = np.array([pid_out, pid_out])
 
                     stream_writers.AnalogMultiChannelWriter(task.out_stream, auto_start=True).write_one_sample(input)
 
-                with nidaqmx.Task() as task:
-
-                    task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
-                    task.ai_channels.add_ai_voltage_chan("Dev1/ai1")
-
-                    read = np.array([0.0, 0.0])
-                    task.start()
-                    stream_readers.AnalogMultiChannelReader(task.in_stream).read_one_sample(read)
             except:
                 pass
-
 
         # Send the acquired data
         connection.sendall(f'{len(pickle.dumps(to_send))}'.encode())
