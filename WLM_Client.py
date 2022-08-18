@@ -74,6 +74,7 @@ class Transmission(QtCore.QObject):
                         pass
                     else:
                         wvl_error[i].append(diff)
+                        
                     # Stop wvl_longdata from growing indefinitely
                     if len(wvl_error[i]) > 30:
                         wvl_error[i].pop(0)
@@ -81,9 +82,9 @@ class Transmission(QtCore.QObject):
                     pass
                 
             # Parameters for PID
-            Kp = 1.0
-            Ki = 1.0
-            Kd = 1.0
+            Kp = 0.0
+            Ki = 0.0
+            Kd = 0.0
             dt = time.perf_counter() - ti
 
             # Calculate the PID function output
@@ -92,7 +93,14 @@ class Transmission(QtCore.QObject):
                         integral += wvl_error[i][-1]*dt
                         derivative = (wvl_error[i][-1] - wvl_error[i][-2])/dt
                         pid_out = Kp*wvl_error[i][-1] + Ki*integral + Kd*derivative
-                        selec_list[i][2] = pid_out
+
+                        if pid_out<4 and pid_out>-0.0285:
+                            selec_list[i][2] = pid_out
+                        if pid_out>=4:
+                            selec_list[i][2] = 4.0
+                        if pid_out<=-0.0285:
+                            selec_list[i][2] = -0.0285
+                        print(selec_list[i][2])
 
                     except:
                         pass
