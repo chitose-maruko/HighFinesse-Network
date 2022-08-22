@@ -30,7 +30,7 @@ If this file prints 'Waiting for connection' and never prints 'Connected!', ther
 
 # Resources
 Shows socket library in a similar context: https://codesource.io/creating-python-socket-server-with-multiple-clients/ <br>
-Important to note that this socket demonstration uses _thread while we use threading
+Important to note that this socket demonstration uses _thread while we use threading <br>
 pyqtgraph library documentation: https://www.pyqtgraph.org/ <br>
 Shows QThread in a similar context: https://realpython.com/python-pyqt-qthread/#freezing-a-gui-with-long-running-tasks <br>
 The documentation for nidaqmx is sparse but can be found here: https://nidaqmx-python.readthedocs.io/en/latest/
