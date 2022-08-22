@@ -93,6 +93,8 @@ def client_handler(connection):
         connection.sendall(f'{len(pickle.dumps(to_send))}'.encode())
         connection.sendall(pickle.dumps(to_send))
         # Specified wait time to allow for multiple clients
+        # Without this, opening an additional client causes the initial client program to freeze
+        # This time delay could potentially be reduced
         time.sleep(0.5)
 
 # Create a function which will connect to clients and assign these to be managed in individual threads
