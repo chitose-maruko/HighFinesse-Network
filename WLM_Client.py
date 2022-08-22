@@ -28,6 +28,9 @@ selec_list = [['Off', '1', None], ['Off', '1', None], ['Off', '1', None], ['Off'
 # Define another global variable to hold the target wavelengths, initialized to 0
 targets = [0, 0, 0, 0, 0, 0, 0, 0]
 
+# Define another global variable to contain PID control values
+PID_val = 8*[[False, 0.0, 0.0, 0.0]]
+
 # This class contains the function which will run in a thread separate from the GUI
 # and manages the server connection
 class Transmission(QtCore.QObject):
@@ -53,7 +56,7 @@ class Transmission(QtCore.QObject):
             length = ClientSocket.recv(8).decode()
 
             msg = []
-	        # Reads data sent from the host, stores in msg
+	    # Reads data sent from the host, stores in msg until full message is received
             while len(b"".join(msg)) < int(length):
                 temp = ClientSocket.recv(8192)
                 msg.append(temp)
@@ -71,39 +74,44 @@ class Transmission(QtCore.QObject):
                     try:
                         diff = float(wvl_data[i]) - float(targets[i])
                     except: 
-                        pass
+                        if len(wvl_error[i]) > 1:
+                            wvl_error[i].append(wvl_error[i][-1])
+                        elif len(wvl_error[i]) <= 1:
+                            pass
                     else:
                         wvl_error[i].append(diff)
                         
                     # Stop wvl_longdata from growing indefinitely
                     if len(wvl_error[i]) > 30:
                         wvl_error[i].pop(0)
-                else:
-                    pass
-                
-            # Parameters for PID
-            Kp = 0.0
-            Ki = 0.0
-            Kd = 0.0
+
+            # Time interval for PID
             dt = time.perf_counter() - ti
 
             # Calculate the PID function output
             for i in range(8):
+                if PID_val[i][0] == True:
                     try:
                         integral += wvl_error[i][-1]*dt
                         derivative = (wvl_error[i][-1] - wvl_error[i][-2])/dt
-                        pid_out = Kp*wvl_error[i][-1] + Ki*integral + Kd*derivative
+                        pid_out = float(PID_val[i][1])*wvl_error[i][-1]+float(PID_val[i][2])*integral+float(PID_val[i][3])*derivative
 
+                        # If statements prevent voltage range in Toptica rack from being exceeded
                         if pid_out<4 and pid_out>-0.0285:
                             selec_list[i][2] = pid_out
                         if pid_out>=4:
                             selec_list[i][2] = 4.0
                         if pid_out<=-0.0285:
                             selec_list[i][2] = -0.0285
-                        print(selec_list[i][2])
-
+                        print(selec_list[0][2])
+                        
                     except:
-                        pass
+                        print(f'Error in PID channel {i}')
+                
+                # Don't compute PID if box not checked        
+                elif PID_val[i] == False:
+                    selec_list[i][2] = None
+                   
 
             # Send the data that has just been stored to another function for further operation        
             self.data.emit([int_data, wvl_error, wvl_data])
@@ -139,8 +147,20 @@ class Window(QtGui.QWidget):
         self.expo_master = 8*[0]
         # Label for exposure time entry
         expo_lbl = 8*[0]
+        # PID enable/disable
+        self.pid_master = 8*[0]
+        # Label for PID enable/disable 
+        pid_lbl = 8*[0]
+        # Entry boxes for the PID parameters
+        self.P = 8*[0]
+        self.I = 8*[0]
+        self.D = 8*[0]
+        # Labels for the PID parameters
+        P_lbl = 8*[0]
+        I_lbl = 8*[0]
+        D_lbl = 8*[0]
 	
-        # Loop over channels
+        # Loop over channels to create the different labels, entry boxes, and such
         for i in range(8):
             self.wvl_lbl[i] = QtGui.QLabel('<h4>Channel ' + f'{i+1}' + '</h4>', parent=self)
             self.wvl_lbl[i].setStyleSheet(f'color: rgb{self.color[i]}')
@@ -157,13 +177,28 @@ class Window(QtGui.QWidget):
             self.expo_master[i].setStyleSheet('color: white')
             expo_lbl[i] = QtGui.QLabel(f'Ch {i+1} Exposure Time (ms):', parent=self)
             expo_lbl[i].setStyleSheet('color: white')
+            self.pid_master[i] = QtGui.QCheckBox(parent=self)
+            self.pid_master[i].setStyleSheet('color: black;''background-color: grey;')
+            pid_lbl[i] = QtGui.QLabel('Engage PID:')
+            pid_lbl[i].setStyleSheet('color: white')
+            self.P[i] = QtGui.QLineEdit(parent=self)
+            self.P[i].setStyleSheet('color: white')
+            self.I[i] = QtGui.QLineEdit(parent=self)
+            self.I[i].setStyleSheet('color: white')
+            self.D[i] = QtGui.QLineEdit(parent=self)
+            self.D[i].setStyleSheet('color: white')
+            P_lbl[i] = QtGui.QLabel('P:')
+            P_lbl[i].setStyleSheet('color: white')
+            I_lbl[i] = QtGui.QLabel('I:')
+            I_lbl[i].setStyleSheet('color: white')
+            D_lbl[i] = QtGui.QLabel('D:')
+            D_lbl[i].setStyleSheet('color: white')
 
-    # Create the widgets for plotting
+    	# Create the widgets for plotting
 	# Wavelength Error plot
         self.wvl = pg.PlotWidget(parent=self)
         self.wvl.setTitle('Wavelength Error')
         self.wvl.addLegend()
-        self.wvl.showAxis('bottom', False)
         self.wvl.setLabel('left', 'nm')
 	# Interferometer plot
         self.inter = pg.PlotWidget(parent=self)
@@ -176,45 +211,71 @@ class Window(QtGui.QWidget):
 	
         # Position each of these widgets on the GUI
         for i in range(4):
-            layout.addWidget(self.wvl_lbl[i], 0, 2*i)
-            layout.addWidget(self.menu_master[i], 0, 2*i+1)
-            layout.addWidget(self.tgt_master[i], 1, 2*i+1)
-            layout.addWidget(tgt_lbl[i], 1, 2*i)
-            layout.addWidget(self.expo_master[i], 2, 2*i+1)
-            layout.addWidget(expo_lbl[i], 2, 2*i)
+            layout.addWidget(self.wvl_lbl[i], 0, 8*i, 1, 4)
+            layout.addWidget(self.menu_master[i], 0, 8*i+4, 1, 4)
+            layout.addWidget(self.tgt_master[i], 1, 8*i+4, 1, 4)
+            layout.addWidget(tgt_lbl[i], 1, 8*i, 1, 4)
+            layout.addWidget(self.expo_master[i], 2, 8*i+4, 1, 4)
+            layout.addWidget(expo_lbl[i], 2, 8*i, 1, 4)
+            layout.addWidget(self.pid_master[i], 3, 8*i+1)
+            layout.addWidget(pid_lbl[i], 3, 8*i)
+            layout.addWidget(self.P[i], 3, 8*i+3)
+            layout.addWidget(self.I[i], 3, 8*i+5)
+            layout.addWidget(self.D[i], 3, 8*i+7)
+            layout.addWidget(P_lbl[i], 3, 8*i+2)
+            layout.addWidget(I_lbl[i], 3, 8*i+4)
+            layout.addWidget(D_lbl[i], 3, 8*i+6)
         for i in range(4,8):
-            layout.addWidget(self.wvl_lbl[i], 3, 2*i-8)
-            layout.addWidget(self.menu_master[i], 3, 2*i-7)
-            layout.addWidget(self.tgt_master[i], 4, 2*i-7)
-            layout.addWidget(tgt_lbl[i], 4, 2*i-8)
-            layout.addWidget(self.expo_master[i], 5, 2*i-7)
-            layout.addWidget(expo_lbl[i], 5, 2*i-8)
+            layout.addWidget(self.wvl_lbl[i], 4, 8*i-32, 1, 4)
+            layout.addWidget(self.menu_master[i], 4, 8*i-28, 1, 4)
+            layout.addWidget(self.tgt_master[i], 5, 8*i-28, 1, 4)
+            layout.addWidget(tgt_lbl[i], 5, 8*i-32, 1, 4)
+            layout.addWidget(self.expo_master[i], 6, 8*i-28, 1, 4)
+            layout.addWidget(expo_lbl[i], 6, 8*i-32, 1, 4)
+            layout.addWidget(self.pid_master[i], 7, 8*i-31)
+            layout.addWidget(pid_lbl[i], 7, 8*i-32)
+            layout.addWidget(self.P[i], 7, 8*i-29)
+            layout.addWidget(self.I[i], 7, 8*i-27)
+            layout.addWidget(self.D[i], 7, 8*i-25)
+            layout.addWidget(P_lbl[i], 7, 8*i-30)
+            layout.addWidget(I_lbl[i], 7, 8*i-28)
+            layout.addWidget(D_lbl[i], 7, 8*i-26)
 
-        layout.addWidget(self.wvl, 6, 4, 3, 4)
-        layout.addWidget(self.inter, 6, 0, 3, 4)
+        layout.addWidget(self.wvl, 8, 16, 3, 16)
+        layout.addWidget(self.inter, 8, 0, 3, 16)
         
 	# Run the function, defined later in this code, which starts the thread for the Transmission class
         self.worker_thread()
            
     # This function updates the GUI with data received from the server
+    # It also calculates the PID function
     def gui_update(self, data):
         # Clear the plots whenever new data is received
         self.wvl.clear()
         self.inter.clear() 
 	
         for i in range(8):
-	    # Use the channel labels to display current wavelength
-            self.wvl_lbl[i].setText('<h4>Ch '+f'{i+1}: {data[2][i]} nm </h4>')
+	    # Use the channel labels to display current wavelength (only up to 6 decimal points)
+            try:
+                float(data[2][i])
+                self.wvl_lbl[i].setText('<h4>Ch '+f'{i+1}: {data[2][i]:.10} nm </h4>')
+            except:
+                self.wvl_lbl[i].setText('<h4>Ch '+f'{i+1}: {data[2][i]} nm </h4>')
 
             # Update global lists with user entered information
             selec_list[i][0] = self.menu_master[i].currentText()
             selec_list[i][1] = self.expo_master[i].text()
             targets[i] = self.tgt_master[i].text()
+            PID_val[i] = [self.pid_master[i].isChecked(), self.P[i].text(), self.I[i].text(), self.D[i].text()]
 
 	    # Plot according to user requests
             if selec_list[i][0] != 'Off':
                 try:
-                    self.wvl.plot(data[1][i], name=f'Ch{i+1}', pen=self.color[i])
+                    # Plot circles if the error data is not updating
+                    if data[1][i][-1] == data[1][i][-2]:
+                        self.wvl.plot(data[1][i], name=f'Ch{i+1}', pen=self.color[i], symbol='o')
+                    else:
+                        self.wvl.plot(data[1][i], name=f'Ch{i+1}', pen=self.color[i])
                 except:
                     pass
                 try:
