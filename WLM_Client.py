@@ -1,5 +1,6 @@
-# Code to connect to an established server through ethernet
+#!/usr/bin/env python3
 
+# Code to connect to an established server through ethernet
 import pyqtgraph as pg
 import socket
 import pickle
