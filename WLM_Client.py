@@ -346,15 +346,16 @@ class Window(QtGui.QWidget):
 
     def load_configs(self):
         for i in range(8):
-            self.settings.beginGroup(str(i))
-            self.menu_master[i].setCurrentIndex(int(self.settings.value("menu")))
-            self.tgt_master[i].setText(self.settings.value("target_wvl"))
-            self.expo_master[i].setText(self.settings.value("exposure"))
-            self.pid_master[i].setCheckState(int(self.settings.value("PID_state")))
-            self.P[i].setText(self.settings.value("P"))
-            self.I[i].setText(self.settings.value("I"))
-            self.D[i].setText(self.settings.value("D"))
-            self.settings.endGroup()
+            if self.settings.contains(str(i)):
+                self.settings.beginGroup(str(i))
+                self.menu_master[i].setCurrentIndex(int(self.settings.value("menu")))
+                self.tgt_master[i].setText(self.settings.value("target_wvl"))
+                self.expo_master[i].setText(self.settings.value("exposure"))
+                self.pid_master[i].setCheckState(int(self.settings.value("PID_state")))
+                self.P[i].setText(self.settings.value("P"))
+                self.I[i].setText(self.settings.value("I"))
+                self.D[i].setText(self.settings.value("D"))
+                self.settings.endGroup()
 
     def save_configs(self):
         for i in range(8):
