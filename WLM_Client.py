@@ -59,7 +59,7 @@ class Transmission(QtCore.QObject):
         wvl_error = [[], [], [], [], [], [], [], []]
 
         # Initialize integral for PID to zero
-        integral = 0.0
+        integral = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         while True:
             # Initial time measurement
@@ -108,11 +108,11 @@ class Transmission(QtCore.QObject):
             for i in range(8):
                 if PID_val[i][0] == True:
                     try:
-                        integral += wvl_error[i][-1] * dt
+                        integral[i] += wvl_error[i][-1] * dt
                         derivative = (wvl_error[i][-1] - wvl_error[i][-2]) / dt
                         pid_out = (
                             float(PID_val[i][1]) * wvl_error[i][-1]
-                            + float(PID_val[i][2]) * integral
+                            + float(PID_val[i][2]) * integral[i]
                             + float(PID_val[i][3]) * derivative
                         )
 
@@ -346,7 +346,7 @@ class Window(QtGui.QWidget):
 
     def load_configs(self):
         for i in range(8):
-            if self.settings.contains(str(i)):
+            if str(i) in self.settings.childGroups():
                 self.settings.beginGroup(str(i))
                 self.menu_master[i].setCurrentIndex(int(self.settings.value("menu")))
                 self.tgt_master[i].setText(self.settings.value("target_wvl"))
