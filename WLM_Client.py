@@ -123,8 +123,7 @@ class Transmission(QtCore.QObject):
                             selec_list[i][2] = 4.0
                         if pid_out <= -0.0285:
                             selec_list[i][2] = -0.0285
-                        print(selec_list[0][2])
-
+                        print(f"Ch {i+1}: {selec_list[i][2]:.5f} V")
                     except:
                         print(f"Error in PID channel {i}")
 
