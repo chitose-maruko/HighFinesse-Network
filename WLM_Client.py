@@ -7,7 +7,7 @@ import pickle
 import sys
 import time
 
-from os import path
+from os import path, system
 from pyqtgraph.Qt import QtCore, QtGui
 
 # Configs file location
@@ -105,6 +105,7 @@ class Transmission(QtCore.QObject):
             dt = time.perf_counter() - ti
 
             # Calculate the PID function output
+            system("cls||clear")
             for i in range(8):
                 if PID_val[i][0] == True:
                     try:
@@ -126,10 +127,11 @@ class Transmission(QtCore.QObject):
                         print(f"Ch {i+1}: {selec_list[i][2]:.5f} V")
                     except:
                         print(f"Error in PID channel {i}")
-
                 # Don't compute PID if box not checked
                 elif PID_val[i] == False:
                     selec_list[i][2] = None
+                    # resets integral
+                    integral[i] = 0
 
             # Send the data that has just been stored to another function for further operation
             self.data.emit([int_data, wvl_error, wvl_data])
