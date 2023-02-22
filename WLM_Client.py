@@ -39,6 +39,7 @@ selec_list = [
     ["Off", "1", None],
     ["Off", "1", None],
     ["Off", "1", None],
+    [False]
 ]
 
 # Define another global variable to hold the target wavelengths, initialized to 0
@@ -46,6 +47,9 @@ targets = [0, 0, 0, 0, 0, 0, 0, 0]
 
 # Define another global variable to contain PID control values
 PID_val = 8 * [[False, 0.0, 0.0, 0.0]]
+
+#Define another global variables to hold the boolean value of whether to stop the server or not
+Quit_bool = False
 
 # This class contains the function which will run in a thread separate from the GUI
 # and manages the server connection
@@ -239,7 +243,8 @@ class Window(QtGui.QWidget):
         self.inter = pg.PlotWidget(parent=self)
         self.inter.setTitle("Interferometer")
         self.inter.addLegend()
-
+        #Button for Terminating the server application
+        self.quitBtn =QtGui.QPushButton('Terminate the server application')
         # Format the layout of the application
         layout = QtGui.QGridLayout()
         self.setLayout(layout)
@@ -284,7 +289,10 @@ class Window(QtGui.QWidget):
 
         # Run the function, defined later in this code, which starts the thread for the Transmission class
         self.worker_thread()
-
+    #Function activated when Quit button is hit
+    def toggle_bool():
+        Quit_bool =True
+        print("Quit_bool is now true")
     # This function updates the GUI with data received from the server
     # It also calculates the PID function
     def gui_update(self, data):
