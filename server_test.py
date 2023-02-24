@@ -121,7 +121,7 @@ def quit_test():
     print('enter: y')
     test_string = input()
     if test_string == 'y':
-        wlmData.dll.ControlWLM(wlmConst.cCtrlWLMExit,None,None)
+        wlmData.dll.ControlWLM(wlmConst.cCtrlWLMExit,0,0)
         print('Sever shut down complete')        
 
 # Lastly, create a function which starts the server
