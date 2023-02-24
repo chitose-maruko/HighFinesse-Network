@@ -12,6 +12,7 @@ import pickle
 import numpy as np
 import nidaqmx
 from nidaqmx import stream_writers
+import ctypes
 
 # Load in the DLL provided by HighFinesse
 DLL_PATH = "wlmData.dll"
@@ -27,6 +28,8 @@ except:
 host = "192.168.1.56"
 port = 5353
 
+#global boolean for exiting the process
+Continue_bool = True
 # Put the wavemeter in switcher mode
 wlmData.dll.SetSwitcherMode(1)
 
@@ -114,14 +117,16 @@ def client_handler(connection):
 def accept_connections(ServerSocket):
     Client, address = ServerSocket.accept()
     print("Connected to: " + address[0] + ":" + str(address[1]))
-    threading.Thread(target=client_handler, args=(Client,)).start()
+    handler = threading.Thread(target=client_handler, args=(Client,))
+    handler.daemon
 
 def quit_test():
     time.sleep(2)
     print('enter: y')
     test_string = input()
     if test_string == 'y':
-        wlmData.dll.ControlWLM(wlmConst.cCtrlWLMExit,0,0)
+        Continue_bool=False
+        wlmData.dll.ControlWLM(wlmConst.cCtrlWLMExit,ctypes.c_int(),0)
         print('Sever shut down complete')        
 
 # Lastly, create a function which starts the server
@@ -134,10 +139,10 @@ def start_server(host, port):
     print(f"Server is listening on TCP port {port}...")
     ServerSocket.listen()
 
-    threading.Thread(target=quit_test,args=()).start()
-
-    while True:
+    while Continue_bool:
         accept_connections(ServerSocket)
+        threading.main_thread(target=quit_test,args=()).start()
+    print("server session ended")
 
 
 start_server(host, port)
