@@ -118,9 +118,10 @@ def accept_connections(ServerSocket):
 
 def quit_test():
     time.sleep(2)
+    print('enter: y')
     test_string = input()
     if test_string == 'y':
-        wlmData.dll.ControlWLM(wlmConst.cCtrlWLMExit)
+        wlmData.dll.ControlWLM(wlmConst.cCtrlWLMExit,None,None)
         print('Sever shut down complete')        
 
 # Lastly, create a function which starts the server
