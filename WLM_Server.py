@@ -27,6 +27,9 @@ except:
 host = "192.168.1.56"
 port = 5353
 
+#global variable to be shared among all clients and the server
+exp_Time=8*[1] 
+PID_val = 8 * [[False, 0.0, 0.0, 0.0]]
 # Put the wavemeter in switcher mode
 wlmData.dll.SetSwitcherMode(1)
 
@@ -39,9 +42,13 @@ to_send = [Wavelength, Interferometer]
 
 # Create a function which will manage the connection with the client
 def client_handler(connection):
+    global PID_val
+    global exp_Time
     # Loop to continually interact with the client
     while True:
         data = connection.recv(4096)
+        PID_val=pickle.loads(data)
+        pid_byte = connection.recv(4096)
         selec_list = pickle.loads(data)
 
         for i in range(8):
@@ -101,6 +108,14 @@ def client_handler(connection):
             except:
                 pass
 
+            #Get the most up to date value for Exposure time
+            try:
+                exp_Time[i]=wlmData.dll.GetExposureNum(i+1,1,int(0))
+            except:
+                pass
+        #Send wavemeter and PID values to be shared among clients
+        connection.sendall(pickle.dumps(exp_time))
+        connection.sendall(pickle.dumps(PID_val))
         # Send the acquired data
         connection.sendall(f"{len(pickle.dumps(to_send))}".encode())
         connection.sendall(pickle.dumps(to_send))
@@ -129,6 +144,7 @@ def start_server(host, port):
 
     while True:
         accept_connections(ServerSocket)
+
 
 
 start_server(host, port)

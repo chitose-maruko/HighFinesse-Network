@@ -59,6 +59,8 @@ class Transmission(QtCore.QObject):
 
     # The function that manages the connection and updates variable with received data
     def update(self):
+        global selec_list
+        global PID_val
         # Create list to store the wavelength error data for plotting
         wvl_error = [[], [], [], [], [], [], [], []]
 
@@ -72,6 +74,13 @@ class Transmission(QtCore.QObject):
             # Pickles and sends selection list
             to_send = pickle.dumps(selec_list)
             ClientSocket.sendall(to_send)
+            send_PID = pickle.dumps(PID_val)
+            ClientsSocket.sendall(send_PID)
+
+            #Reads current exposure time setting from the host
+            exp_Bytes = ClientSocket.recv(256)
+            #Reads current PID values sent by the host 
+            PID_Bytes = ClientSocket.recv(4096)
             # Reads in the length of the message to be received
             length = ClientSocket.recv(8).decode()
 
@@ -81,8 +90,14 @@ class Transmission(QtCore.QObject):
                 temp = ClientSocket.recv(8192)
                 msg.append(temp)
 
-            # Unpickle msg
+            # Unpickle received data
+            exp_Time = pickle.loads(exp_Bytes)
+            PID_val=pickle.loads(PID_Bytes)
             data = pickle.loads(b"".join(msg))
+
+            #Update Exposure time
+            for i in range(8):
+                selec_list[i][1]=exp_Time[i]
 
             # Store wavelength and interferometer data in separate lists
             wvl_data = data[0]
@@ -289,10 +304,7 @@ class Window(QtGui.QWidget):
 
         # Run the function, defined later in this code, which starts the thread for the Transmission class
         self.worker_thread()
-    #Function activated when Quit button is hit
-    def toggle_bool():
-        Quit_bool =True
-        print("Quit_bool is now true")
+
     # This function updates the GUI with data received from the server
     # It also calculates the PID function
     def gui_update(self, data):
