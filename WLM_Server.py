@@ -38,7 +38,7 @@ Wavelength = 8 * [0]
 # Initialize the interferometer list, zeroth entry serves as an identifier for the client
 Interferometer = 8 * [[]]
 # Initialize the combined list which will be sent over the network
-to_send = [Wavelength, Interferometer]
+to_send = [Wavelength, Interferometer,exp_Time, PID_val]
 
 # Create a function which will manage the connection with the client
 def client_handler(connection):
@@ -47,9 +47,9 @@ def client_handler(connection):
     # Loop to continually interact with the client
     while True:
         data = connection.recv(4096)
-        PID_val=pickle.loads(data)
-        pid_byte = connection.recv(4096)
-        selec_list = pickle.loads(data)
+        combined = pickle.loads(data)
+        selec_list=combined[0]
+        PID_val = combined[1]
 
         for i in range(8):
             # Set the exposure times accoring to selec_list
@@ -113,10 +113,8 @@ def client_handler(connection):
                 exp_Time[i]=wlmData.dll.GetExposureNum(i+1,1,int(0))
             except:
                 pass
-        #Send wavemeter and PID values to be shared among clients
-        connection.sendall(pickle.dumps(exp_time))
-        connection.sendall(pickle.dumps(PID_val))
         # Send the acquired data
+        to_send =[Wavelength,Interferometer,exp_Time,PID_val]
         connection.sendall(f"{len(pickle.dumps(to_send))}".encode())
         connection.sendall(pickle.dumps(to_send))
         # Specified wait time to allow for multiple clients

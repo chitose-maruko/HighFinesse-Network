@@ -71,16 +71,11 @@ class Transmission(QtCore.QObject):
             # Initial time measurement
             ti = time.perf_counter()
 
-            # Pickles and sends selection list
-            to_send = pickle.dumps(selec_list)
+            # Pickles and sends selection list and current PID selections
+            combined = [selec_list,PID_val]
+            to_send = pickle.dumps(combined)
             ClientSocket.sendall(to_send)
-            send_PID = pickle.dumps(PID_val)
-            ClientsSocket.sendall(send_PID)
 
-            #Reads current exposure time setting from the host
-            exp_Bytes = ClientSocket.recv(256)
-            #Reads current PID values sent by the host 
-            PID_Bytes = ClientSocket.recv(4096)
             # Reads in the length of the message to be received
             length = ClientSocket.recv(8).decode()
 
@@ -90,18 +85,18 @@ class Transmission(QtCore.QObject):
                 temp = ClientSocket.recv(8192)
                 msg.append(temp)
 
-            # Unpickle received data
-            exp_Time = pickle.loads(exp_Bytes)
-            PID_val=pickle.loads(PID_Bytes)
             data = pickle.loads(b"".join(msg))
-
-            #Update Exposure time
-            for i in range(8):
-                selec_list[i][1]=exp_Time[i]
 
             # Store wavelength and interferometer data in separate lists
             wvl_data = data[0]
             int_data = data[1]
+            #Store current exposure time and PID values in separate lists
+            exp_Time = data[2]
+            PID_val=data[3]
+
+            #Set exposure time to the current exposure time on the wavemeter
+            for i in range(8):
+                selec_list[i][1]=exp_Time[i]
 
             # Conditionally calculate the difference between measured and target wavelength
             for i in range(8):
