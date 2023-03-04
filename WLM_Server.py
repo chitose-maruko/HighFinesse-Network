@@ -46,6 +46,7 @@ to_send = [Wavelength, Interferometer]
 # Create a function which will manage the connection with the client
 def client_handler(connection):
     # Loop to continually interact with the client
+    global test
     while True:
         data = connection.recv(4096)
         selec_list = pickle.loads(data)
@@ -68,7 +69,6 @@ def client_handler(connection):
                 #else:
                 Wavelength[i] = f"{test_wavelength}"
                 to_send[0] = Wavelength
-                print(test_wavelength)
             # Don't bother reading the wavelength if the client doesn't request it
             elif selec_list[i][0] == "Off":
                 test.SetSwitcherSignalStates(i + 1, 0, 0)
@@ -117,19 +117,21 @@ def client_handler(connection):
         # Specified wait time to allow for multiple clients
         # Without this, opening an additional client causes the initial client program to freeze
         # This time delay could potentially be reduced
-        print("sleeping now")
         time.sleep(0.5)
 
 
 # Create a function which will connect to clients and assign these to be managed in individual threads
-def accept_connections(ServerSocket):
+def accept_connections(ServerSocket,counter):
     Client, address = ServerSocket.accept()
     print("Connected to: " + address[0] + ":" + str(address[1]))
     threading.Thread(target=client_handler, args=(Client,)).start()
+    if counter<1:
+        threading.Thread(target=expTest,args=()).start()
 
 
 # Lastly, create a function which starts the server
 def start_server(host, port):
+    counter =0
     ServerSocket = socket.socket()
     try:
         ServerSocket.bind((host, port))
@@ -139,7 +141,14 @@ def start_server(host, port):
     ServerSocket.listen()
 
     while True:
-        accept_connections(ServerSocket)
+        accept_connections(ServerSocket,counter)
+        counter +=1
+
+def expTest():
+    for i in range(20):
+        global test
+        print(test.expTimes)
+        time.sleep(3)
 
 
 start_server(host, port)
