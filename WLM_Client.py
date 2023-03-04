@@ -15,8 +15,9 @@ FILE_DIR = path.dirname(path.abspath(__file__))
 CONFIGS_FILE = path.join(FILE_DIR, "configs.ini")
 
 # IP address and TCP port of server
-HOST = "192.168.1.56"
-PORT = 5353
+#HOST and Port is modified for the local test
+HOST = "127.0.0.1"
+PORT = 5000
 
 # Connect to server, display error if connection fails
 ClientSocket = socket.socket()
@@ -73,21 +74,18 @@ class Transmission(QtCore.QObject):
             to_send = pickle.dumps(selec_list)
             ClientSocket.sendall(to_send)
             # Reads in the length of the message to be received
-            length = ClientSocket.recv(8).decode()
-
+            length = int(ClientSocket.recv(8))
             msg = []
             # Reads data sent from the host, stores in msg until full message is received
-            while len(b"".join(msg)) < int(length):
-                temp = ClientSocket.recv(8192)
+            while len(b"".join(msg)) < length:
+                temp = ClientSocket.recv(1024)
                 msg.append(temp)
-
             # Unpickle msg
             data = pickle.loads(b"".join(msg))
 
             # Store wavelength and interferometer data in separate lists
             wvl_data = data[0]
             int_data = data[1]
-
             # Conditionally calculate the difference between measured and target wavelength
             for i in range(8):
                 if selec_list[i][0] == "Wvl Error" or selec_list[i][0] == "Both Graphs":
@@ -109,7 +107,7 @@ class Transmission(QtCore.QObject):
             dt = time.perf_counter() - ti
 
             # Calculate the PID function output
-            system("cls||clear")
+            #system("cls||clear")
             for i in range(8):
                 if PID_val[i][0] == True:
                     try:
