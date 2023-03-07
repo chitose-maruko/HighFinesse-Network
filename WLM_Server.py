@@ -46,7 +46,7 @@ Exposures=[False,8*[1]]
 PIDs=[False,8*[False,0,0,0]]
 Targets=[False]
 # Initialize the combined list which will be sent over the network
-to_send = [Wavelength, Interferometer,Exposures,PIDs,Targets]
+#to_send = [Wavelength, Interferometer,Exposures,PIDs,Targets]
 #global variable to indicate the updates avaialbility for parameters
 update=True
 
@@ -62,7 +62,12 @@ def client_handler(connection):
             temp=connection.recv(64)
             msg.append(temp)
         selec_list = pickle.loads(b"".join(msg))
+        if random.randint(0,10)<1:
+            Exposures[0]=True
+            Exposures[1][7]=random.randint(1,15)
+            print(Exposures)
         if selec_list[-1][0]==True:
+            print(selec_list)
             for i in range(8):
             # Set the exposure times accoring to selec_list
                 try:
@@ -71,10 +76,6 @@ def client_handler(connection):
                 except:
                     pass
             selec_list[-1][0]=False
-        if random.randint(0,10)<1:
-            Exposures[0]=True
-            Exposures[1][7]=random.randint(1,15)
-            print(Exposures)
         for i in range(8):
             # # Set the exposure times accoring to selec_list
             # try:

@@ -69,6 +69,8 @@ class Transmission(QtCore.QObject):
 
         # Initialize integral for PID to zero
         integral = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        global counter
+        global expo_flag
 
         while True:
             # Initial time measurement
@@ -80,7 +82,10 @@ class Transmission(QtCore.QObject):
             ClientSocket.sendall(trs_length.encode())
             ClientSocket.sendall(to_send)
             #reset the update flags once the data is sent
-            expo_flag=False
+            if counter >1:
+                expo_flag=False
+            else:
+                counter+=1
             selec_list[-1][0]=expo_flag
 
             # Reads in the length of the message to be received
@@ -227,7 +232,7 @@ class Window(QtGui.QWidget):
             self.expo_master[i] = QtGui.QLineEdit(parent=self)
             self.expo_master[i].setText(selec_list[i][1])
             self.expo_master[i].setStyleSheet("color: white")
-            self.expo_master[i].textEdited.connect(lambda: self.flag_expo_change(i))
+            self.expo_master[i].textEdited.connect(self.flag_expo_change)
             expo_lbl[i] = QtGui.QLabel(f"Ch {i+1} Exposure Time (ms):", parent=self)
             expo_lbl[i].setStyleSheet("color: white")
 
@@ -312,12 +317,14 @@ class Window(QtGui.QWidget):
     # This function updates the GUI with data received from the server
     # It also calculates the PID function
     def gui_update(self, data):
+        global expo_flag
         # Clear the plots whenever new data is received
         self.wvl.clear()
         self.inter.clear()
 
         up_dict = data[3]
         self.param_update(up_dict)
+        flags=[]
 
         for i in range(8):
             # Use the channel labels to display current wavelength (only up to 6 decimal points)
@@ -326,7 +333,7 @@ class Window(QtGui.QWidget):
                 self.wvl_lbl[i].setText("<h4>Ch " + f"{i+1}: {data[2][i]:.10} nm </h4>")
             except:
                 self.wvl_lbl[i].setText("<h4>Ch " + f"{i+1}: {data[2][i]} nm </h4>")
-
+            
             # Update global lists with user entered information
             selec_list[i][0] = self.menu_master[i].currentText()
             selec_list[i][1] = self.expo_master[i].text()
@@ -354,6 +361,7 @@ class Window(QtGui.QWidget):
                     self.inter.plot(data[0][i], name=f"Ch{i+1}", pen=self.color[i])
                 except:
                     pass
+
     # This functions runs the transmission class in another thread
     def worker_thread(self):
         self.thread = QtCore.QThread()
@@ -400,8 +408,6 @@ class Window(QtGui.QWidget):
 
     #function to update the user parameters according to the data received
     def param_update(self,dictionary):
-        global counter
-        counter+=1
         #check the update for target wavelength
         if dictionary["target"][0]==True:
             tgts=dictionary["target"][1:]
@@ -419,17 +425,19 @@ class Window(QtGui.QWidget):
                     self.I[i]=pid_checks[i][2]
                 if pid_checks[i][3]!=self.D[i].text():
                     self.D[i]=pid_checks[i][3]
-        if dictionary["expo_t"][0]==True:
+        if dictionary["expo_t"][0] :
             expos=dictionary["expo_t"][1]
             for i in range(8):
                 if int(expos[i])!=int(self.expo_master[i].text()):
                     self.expo_master[i].setText(str(expos[i]))
     
-    def flag_expo_change(self,ind):
+    def flag_expo_change(self):
         global expo_flag
-        if selec_list[ind][1]!=self.expo_master[ind]:
-            expo_flag=True
+        global selec_list
+        global counter
+        expo_flag=True
         selec_list[-1][0]=expo_flag
+        counter =0
 
 
 # Set up and run GUI
@@ -437,4 +445,3 @@ app = QtGui.QApplication([])
 window = Window()
 window.show()
 sys.exit(app.exec_())
-
