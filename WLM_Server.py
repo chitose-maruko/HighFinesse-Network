@@ -7,6 +7,7 @@ import threading
 import time
 #import wlmData
 #import wlmConst
+import random
 import sys
 import pickle
 import numpy as np
@@ -40,23 +41,47 @@ test.SetSwitcherMode(1)
 Wavelength = 8 * [0]
 # Initialize the interferometer list, zeroth entry serves as an identifier for the client
 Interferometer = 8 * [[]]
+#Initialize the exposure time list, zeroth entry serves as an identifier whether there has been an update
+Exposures=[False,8*[1]]
+PIDs=[False,8*[False,0,0,0]]
+Targets=[False]
 # Initialize the combined list which will be sent over the network
-to_send = [Wavelength, Interferometer]
+to_send = [Wavelength, Interferometer,Exposures,PIDs,Targets]
+#global variable to indicate the updates avaialbility for parameters
+update=True
 
 # Create a function which will manage the connection with the client
 def client_handler(connection):
     # Loop to continually interact with the client
     global test
+    global selec_list
     while True:
-        data = connection.recv(4096)
-        selec_list = pickle.loads(data)
-
-        for i in range(8):
+        length=int(connection.recv(8))
+        msg=[]
+        while len(B"".join(msg))<length:
+            temp=connection.recv(64)
+            msg.append(temp)
+        selec_list = pickle.loads(b"".join(msg))
+        if selec_list[-1][0]==True:
+            for i in range(8):
             # Set the exposure times accoring to selec_list
-            try:
-                test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
-            except:
-                pass
+                try:
+                    test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
+                    Exposures[1][i]=int(selec_list[i][1])
+                except:
+                    pass
+            selec_list[-1][0]=False
+        if random.randint(0,10)<1:
+            Exposures[0]=True
+            Exposures[1][7]=random.randint(1,15)
+            print(Exposures)
+        for i in range(8):
+            # # Set the exposure times accoring to selec_list
+            # try:
+            #     test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
+            #     Exposures[1][i]=selec_list[i][1]
+            # except:
+            #     pass
 
             # Manage sending the wavelength data
             if selec_list[i][0] != "Off":
@@ -109,11 +134,12 @@ def client_handler(connection):
 
             #except:
                 #pass
-
+        to_send = [Wavelength, Interferometer,Exposures,PIDs,Targets]
         # Send the acquired data
         msgLength=f"{len(pickle.dumps(to_send)):<{HEADERLENGTH}}"
         connection.sendall(msgLength.encode())
         connection.sendall(pickle.dumps(to_send))
+        Exposures[0]=False
         # Specified wait time to allow for multiple clients
         # Without this, opening an additional client causes the initial client program to freeze
         # This time delay could potentially be reduced
@@ -125,8 +151,8 @@ def accept_connections(ServerSocket,counter):
     Client, address = ServerSocket.accept()
     print("Connected to: " + address[0] + ":" + str(address[1]))
     threading.Thread(target=client_handler, args=(Client,)).start()
-    if counter<1:
-        threading.Thread(target=expTest,args=()).start()
+    # if counter<1:
+    #     threading.Thread(target=expTest,args=()).start()
 
 
 # Lastly, create a function which starts the server
