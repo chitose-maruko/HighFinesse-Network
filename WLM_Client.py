@@ -9,15 +9,18 @@ import time
 
 from os import path, system
 from pyqtgraph.Qt import QtCore, QtGui
-
+#Define the length of th header to communicate the length of the data
+HEADERSIZE=8
 # Configs file location
 FILE_DIR = path.dirname(path.abspath(__file__))
 CONFIGS_FILE = path.join(FILE_DIR, "configs.ini")
 
 # IP address and TCP port of server
-HOST = "192.168.1.56"
-PORT = 5353
+#HOST and Port is modified for the local test
+HOST = "127.0.0.1"
+PORT = 5000
 
+counter=0
 # Connect to server, display error if connection fails
 ClientSocket = socket.socket()
 print("Waiting for connection")
@@ -27,6 +30,8 @@ try:
 except socket.error as e:
     print(str(e))
 
+#define global variable to keep track of updates made by user
+expo_flag=False
 # Define global variable which will store the desired mode, selected exposure time of each channel,
 # and the PID output for each channel
 # Starting values are Off with 1 ms exposure time and 0.0 for PID output
@@ -39,7 +44,7 @@ selec_list = [
     ["Off", "1", None],
     ["Off", "1", None],
     ["Off", "1", None],
-    [False]
+    [expo_flag,False,False]
 ]
 
 # Define another global variable to hold the target wavelengths, initialized to 0
@@ -66,38 +71,41 @@ class Transmission(QtCore.QObject):
 
         # Initialize integral for PID to zero
         integral = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        global counter
+        global expo_flag
 
         while True:
             # Initial time measurement
             ti = time.perf_counter()
 
-            # Pickles and sends selection list and current PID selections
-            combined = [selec_list,PID_val]
-            to_send = pickle.dumps(combined)
+            # Pickles and sends selection list
+            to_send = pickle.dumps(selec_list)
+            trs_length=f"{len(to_send):<{HEADERSIZE}}"
+            ClientSocket.sendall(trs_length.encode())
             ClientSocket.sendall(to_send)
+            #reset the update flags once the data is sent
+            if counter >1:
+                expo_flag=False
+            else:
+                counter+=1
+            selec_list[-1][0]=expo_flag
 
             # Reads in the length of the message to be received
-            length = ClientSocket.recv(8).decode()
-
+            length = int(ClientSocket.recv(8))
             msg = []
             # Reads data sent from the host, stores in msg until full message is received
-            while len(b"".join(msg)) < int(length):
-                temp = ClientSocket.recv(8192)
+            while len(b"".join(msg)) < length:
+                temp = ClientSocket.recv(1024)
                 msg.append(temp)
-
+            # Unpickle msg
             data = pickle.loads(b"".join(msg))
 
             # Store wavelength and interferometer data in separate lists
             wvl_data = data[0]
             int_data = data[1]
-            #Store current exposure time and PID values in separate lists
-            exp_Time = data[2]
-            PID_val=data[3]
-
-            #Set exposure time to the current exposure time on the wavemeter
-            for i in range(8):
-                selec_list[i][1]=exp_Time[i]
-
+            expo_update=data[2]
+            pid_update=data[3]
+            tgt_update=data[4]
             # Conditionally calculate the difference between measured and target wavelength
             for i in range(8):
                 if selec_list[i][0] == "Wvl Error" or selec_list[i][0] == "Both Graphs":
@@ -119,7 +127,7 @@ class Transmission(QtCore.QObject):
             dt = time.perf_counter() - ti
 
             # Calculate the PID function output
-            system("cls||clear")
+            #system("cls||clear")
             for i in range(8):
                 if PID_val[i][0] == True:
                     try:
@@ -148,8 +156,12 @@ class Transmission(QtCore.QObject):
                     integral[i] = 0
 
             # Send the data that has just been stored to another function for further operation
-            self.data.emit([int_data, wvl_error, wvl_data])
-
+            upd_dict={
+                "target":tgt_update,
+                "PID": pid_update,
+                "expo_t":expo_update
+            }
+            self.data.emit([int_data, wvl_error, wvl_data,upd_dict])
 
 # This class sets up and runs the GUI, while using the Transmission class in a separate thread
 # to interact with the server
@@ -222,6 +234,7 @@ class Window(QtGui.QWidget):
             self.expo_master[i] = QtGui.QLineEdit(parent=self)
             self.expo_master[i].setText(selec_list[i][1])
             self.expo_master[i].setStyleSheet("color: white")
+            self.expo_master[i].textEdited.connect(self.flag_expo_change)
             expo_lbl[i] = QtGui.QLabel(f"Ch {i+1} Exposure Time (ms):", parent=self)
             expo_lbl[i].setStyleSheet("color: white")
 
@@ -303,9 +316,14 @@ class Window(QtGui.QWidget):
     # This function updates the GUI with data received from the server
     # It also calculates the PID function
     def gui_update(self, data):
+        global expo_flag
         # Clear the plots whenever new data is received
         self.wvl.clear()
         self.inter.clear()
+
+        up_dict = data[3]
+        self.param_update(up_dict)
+        flags=[]
 
         for i in range(8):
             # Use the channel labels to display current wavelength (only up to 6 decimal points)
@@ -314,7 +332,7 @@ class Window(QtGui.QWidget):
                 self.wvl_lbl[i].setText("<h4>Ch " + f"{i+1}: {data[2][i]:.10} nm </h4>")
             except:
                 self.wvl_lbl[i].setText("<h4>Ch " + f"{i+1}: {data[2][i]} nm </h4>")
-
+            
             # Update global lists with user entered information
             selec_list[i][0] = self.menu_master[i].currentText()
             selec_list[i][1] = self.expo_master[i].text()
@@ -386,6 +404,39 @@ class Window(QtGui.QWidget):
             self.settings.endGroup()
         # forced synchronization
         self.settings.sync()
+
+    #function to update the user parameters according to the data received
+    def param_update(self,dictionary):
+        #check the update for target wavelength
+        if dictionary["target"][0]==True:
+            tgts=dictionary["target"][1:]
+            for i in range(8):
+                if tgts[i] != self.tgt_master[i].text():
+                    self.tgt_master[i].setText(tgts[i])
+        if dictionary["PID"][0]==True:
+            pid_checks=dictionary["PID"][1:]
+            for i in range(8):
+                if pid_checks[i][0]!=self.pid_master[i].text():
+                    self.pid_master[i].setCheckState(pid_checks[i][0])
+                if pid_checks[i][1]!=self.P[i].text():
+                    self.P[i]=pid_checks[i][1]
+                if pid_checks[i][2]!=self.I[i].text():
+                    self.I[i]=pid_checks[i][2]
+                if pid_checks[i][3]!=self.D[i].text():
+                    self.D[i]=pid_checks[i][3]
+        if dictionary["expo_t"][0] :
+            expos=dictionary["expo_t"][1]
+            for i in range(8):
+                if int(expos[i])!=int(self.expo_master[i].text()):
+                    self.expo_master[i].setText(str(expos[i]))
+    
+    def flag_expo_change(self):
+        global expo_flag
+        global selec_list
+        global counter
+        expo_flag=True
+        selec_list[-1][0]=expo_flag
+        counter =0
 
 
 # Set up and run GUI
