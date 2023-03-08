@@ -42,6 +42,10 @@ port = 5353
 #global variable to be shared among all clients and the server
 exp_Time=8*[1] 
 PID_val = 8 * [[False, 0.0, 0.0, 0.0]]
+
+# #line for local test
+# test.SetSwitcherMode(1)
+
 # Put the wavemeter in switcher mode
 wlmData.dll.SetSwitcherMode(1)
 
