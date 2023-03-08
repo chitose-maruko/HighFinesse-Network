@@ -65,9 +65,8 @@ def client_handler(connection):
         if random.randint(0,10)<1:
             Exposures[0]=True
             Exposures[1][7]=random.randint(1,15)
-            print(Exposures)
+            
         if selec_list[-1][0]==True:
-            print(selec_list)
             for i in range(8):
             # Set the exposure times accoring to selec_list
                 try:
