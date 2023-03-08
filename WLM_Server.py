@@ -72,8 +72,10 @@ def client_handler(connection,counter):
     global selec_list
     global client_updates
     global Exposures
+    global client_list
     client_id = counter
     exposures=[False,Exposures]
+    client = client_list[counter]
     while True:
         length=int(connection.recv(8))
         msg=[]
@@ -81,12 +83,11 @@ def client_handler(connection,counter):
             temp=connection.recv(64)
             msg.append(temp)
         selec_list = pickle.loads(b"".join(msg))
-        if client_updates[client_id]:
-            print("thread",client_id,"update available")
+        if client.update:
             exposures[0]=True
             exposures[1]=Exposures
-            client_updates[client_id]=False
-            
+            client.update=False
+
         if selec_list[-1][0]==True:
             for i in range(8):
             # Set the exposure times accoring to selec_list
@@ -102,11 +103,11 @@ def client_handler(connection,counter):
                     pass
 
             selec_list[-1][0]=False
-            for i in range(len(client_updates)):
+            for i in range(len(client_list)):
                 if i!=client_id:
-                    client_updates[i]=True
+                    client_list[i].update=True
                 else:
-                    client_updates[i]=False
+                    client_list[i].update=False
         for i in range(8):
             # Set the exposure times accoring to selec_list
             try:
@@ -194,9 +195,12 @@ def client_handler(connection,counter):
 # Create a function which will connect to clients and assign these to be managed in individual threads
 def accept_connections(ServerSocket,counter):
     global client_updates
+    global client_list
     Client, address = ServerSocket.accept()
     print("Connected to: " + address[0] + ":" + str(address[1]))
     client_updates.append(False)
+    clientstate=ConnectionState()
+    client_list.append(clientstate)
     threading.Thread(target=client_handler, args=(Client,counter)).start()
     # if counter<1:
     #     threading.Thread(target=expTest,args=()).start()
@@ -222,6 +226,10 @@ def expTest():
         global test
         print(test.expTimes)
         time.sleep(3)
-
-
+class ConnectionState():
+    def __init__(self):
+        self.update =False
+        self.options=8*["Off"]
+        self.test =False
+client_list=[]
 start_server(host, port)
