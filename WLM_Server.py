@@ -42,19 +42,25 @@ Wavelength = 8 * [0]
 # Initialize the interferometer list, zeroth entry serves as an identifier for the client
 Interferometer = 8 * [[]]
 #Initialize the exposure time list, zeroth entry serves as an identifier whether there has been an update
-Exposures=[False,8*[1]]
+Exposures=8*[1]
 PIDs=[False,8*[False,0,0,0]]
 Targets=[False]
 # Initialize the combined list which will be sent over the network
 #to_send = [Wavelength, Interferometer,Exposures,PIDs,Targets]
 #global variable to indicate the updates avaialbility for parameters
 update=True
+#Initialize the list of parameter update avaialbilities for each client
+client_updates=[]
 
 # Create a function which will manage the connection with the client
-def client_handler(connection):
+def client_handler(connection,counter):
     # Loop to continually interact with the client
     global test
     global selec_list
+    global client_updates
+    global Exposures
+    client_id = counter
+    exposures=[False,Exposures]
     while True:
         length=int(connection.recv(8))
         msg=[]
@@ -62,19 +68,28 @@ def client_handler(connection):
             temp=connection.recv(64)
             msg.append(temp)
         selec_list = pickle.loads(b"".join(msg))
-        if random.randint(0,10)<1:
-            Exposures[0]=True
-            Exposures[1][7]=random.randint(1,15)
+        if client_updates[client_id]:
+            print("thread",client_id,"update available")
+            exposures[0]=True
+            exposures[1]=Exposures
+            client_updates[client_id]=False
             
         if selec_list[-1][0]==True:
             for i in range(8):
             # Set the exposure times accoring to selec_list
                 try:
                     test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
-                    Exposures[1][i]=int(selec_list[i][1])
+                    Exposures[i]=int(selec_list[i][1])
+                    
                 except:
                     pass
+            #exposures[1]=Exposures[1]
             selec_list[-1][0]=False
+            for i in range(len(client_updates)):
+                if i!=client_id:
+                    client_updates[i]=True
+                else:
+                    client_updates[i]=False
         for i in range(8):
             # # Set the exposure times accoring to selec_list
             # try:
@@ -134,12 +149,12 @@ def client_handler(connection):
 
             #except:
                 #pass
-        to_send = [Wavelength, Interferometer,Exposures,PIDs,Targets]
+        to_send = [Wavelength, Interferometer,exposures,PIDs,Targets]
         # Send the acquired data
         msgLength=f"{len(pickle.dumps(to_send)):<{HEADERLENGTH}}"
         connection.sendall(msgLength.encode())
         connection.sendall(pickle.dumps(to_send))
-        Exposures[0]=False
+        exposures[0]=False
         # Specified wait time to allow for multiple clients
         # Without this, opening an additional client causes the initial client program to freeze
         # This time delay could potentially be reduced
@@ -148,9 +163,11 @@ def client_handler(connection):
 
 # Create a function which will connect to clients and assign these to be managed in individual threads
 def accept_connections(ServerSocket,counter):
+    global client_updates
     Client, address = ServerSocket.accept()
     print("Connected to: " + address[0] + ":" + str(address[1]))
-    threading.Thread(target=client_handler, args=(Client,)).start()
+    client_updates.append(False)
+    threading.Thread(target=client_handler, args=(Client,counter)).start()
     # if counter<1:
     #     threading.Thread(target=expTest,args=()).start()
 
