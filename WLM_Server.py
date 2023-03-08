@@ -37,13 +37,13 @@ except:
 # port = 5000
 #for machine test
 host = "192.168.1.56"
-port = "5353"
+port = 5353
 
 #global variable to be shared among all clients and the server
 exp_Time=8*[1] 
 PID_val = 8 * [[False, 0.0, 0.0, 0.0]]
 # Put the wavemeter in switcher mode
-test.SetSwitcherMode(1)
+wlmData.dll.SetSwitcherMode(1)
 
 # Initialize the wavelength list, zeroth entry serves as an identifier for the client
 Wavelength = 8 * [0]
