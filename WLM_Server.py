@@ -5,39 +5,39 @@
 import socket
 import threading
 import time
-import wlmData
-import wlmConst
+# import wlmData
+# import wlmConst
 import random
 import sys
 import pickle
 import numpy as np
-import nidaqmx
-from nidaqmx import stream_writers
+# import nidaqmx
+# from nidaqmx import stream_writers
 
 #modules for the local test
-# from server_test_module import wlmTest
-# test = wlmTest()
+from server_test_module import wlmTest
+test = wlmTest()
 #global variable for the header of the message
 HEADERLENGTH=8
 # Load in the DLL provided by HighFinesse
 DLL_PATH = "wlmData.dll"
 
-#comment out in case of local test
-try:
-    wlmData.LoadDLL(DLL_PATH)
-except:
-    sys.exit(
-        "Error: Couldn't find DLL on path %s. Please check the DLL_PATH variable!"
-        % DLL_PATH
-    )
+# #comment out in case of local test
+# try:
+#     wlmData.LoadDLL(DLL_PATH)
+# except:
+#     sys.exit(
+#         "Error: Couldn't find DLL on path %s. Please check the DLL_PATH variable!"
+#         % DLL_PATH
+#     )
 
 # Specify the IP address and TCP port which will be used to host the server
-# #modified for the local test
-# host = "127.0.0.1"
-# port = 5000
-#for machine test
-host = "192.168.1.56"
-port = 5353
+#modified for the local test
+host = "127.0.0.1"
+port = 5000
+# #for machine test
+# host = "192.168.1.56"
+# port = 5353
 
 #global variable to be shared among all clients and the server
 exp_Time=8*[1] 
@@ -47,7 +47,8 @@ PID_val = 8 * [[False, 0.0, 0.0, 0.0]]
 # test.SetSwitcherMode(1)
 
 # Put the wavemeter in switcher mode
-wlmData.dll.SetSwitcherMode(1)
+# wlmData.dll.SetSwitcherMode(1)
+test.SetSwitcherMode(1)
 
 # Initialize the wavelength list, zeroth entry serves as an identifier for the client
 Wavelength = 8 * [0]
@@ -90,16 +91,16 @@ def client_handler(connection,counter):
             for i in range(8):
             # Set the exposure times accoring to selec_list
                 try:
-                    #line for machine test
-                    wlmData.dll.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
+                    # #line for machine test
+                    # wlmData.dll.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
 
-                    # #line for local test
-                    # test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
+                    #line for local test
+                    test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
                     Exposures[i]=int(selec_list[i][1])
                     
                 except:
                     pass
-            #exposures[1]=Exposures[1]
+
             selec_list[-1][0]=False
             for i in range(len(client_updates)):
                 if i!=client_id:
@@ -107,36 +108,36 @@ def client_handler(connection,counter):
                 else:
                     client_updates[i]=False
         for i in range(8):
-            # # Set the exposure times accoring to selec_list
-            # try:
-            #     test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
-            #     Exposures[1][i]=selec_list[i][1]
-            # except:
-            #     pass
+            # Set the exposure times accoring to selec_list
+            try:
+                test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
+                Exposures[1][i]=selec_list[i][1]
+            except:
+                 pass
 
             # Manage sending the wavelength data
             if selec_list[i][0] != "Off":
-                # #line for the local test
-                # test.SetSwitcherSignalStates(i + 1, 1, 1)
-                # test_wavelength = test.GetWavelengthNum(i + 1, 0)
-                # Wavelength[i] = f"{test_wavelength}"
+                #line for the local test
+                test.SetSwitcherSignalStates(i + 1, 1, 1)
+                test_wavelength = test.GetWavelengthNum(i + 1, 0)
+                Wavelength[i] = f"{test_wavelength}"
 
-                #line for the actual run
-                wlmData.dll.SetSwitcherSignalStates(i + 1, 1, 1)
-                test_wavelength = wlmData.dll.GetWavelengthNum(i + 1, 0)
-                if test_wavelength == wlmConst.ErrOutOfRange:
-                    Wavelength[i] = "Error: Out of Range"
-                elif test_wavelength <= 0:
-                    Wavelength[i] = f"Error code: {test_wavelength}"
-                else:
-                    Wavelength[i] = f"{test_wavelength}"
+                # #line for the actual run
+                # wlmData.dll.SetSwitcherSignalStates(i + 1, 1, 1)
+                # test_wavelength = wlmData.dll.GetWavelengthNum(i + 1, 0)
+                # if test_wavelength == wlmConst.ErrOutOfRange:
+                #     Wavelength[i] = "Error: Out of Range"
+                # elif test_wavelength <= 0:
+                #     Wavelength[i] = f"Error code: {test_wavelength}"
+                # else:
+                #     Wavelength[i] = f"{test_wavelength}"
                 to_send[0] = Wavelength
             # Don't bother reading the wavelength if the client doesn't request it
             elif selec_list[i][0] == "Off":
-                # #line for local test
-                # test.SetSwitcherSignalStates(i + 1, 0, 0)
-                #line for actual test
-                wlmData.dll.SetSwitcherSignalStates(i + 1, 0, 0)
+                #line for local test
+                test.SetSwitcherSignalStates(i + 1, 0, 0)
+                # #line for actual test
+                # wlmData.dll.SetSwitcherSignalStates(i + 1, 0, 0)
                 Wavelength[i] = "---"
                 Interferometer[i] = []
             # Manage sending the interferometer data
@@ -144,40 +145,40 @@ def client_handler(connection,counter):
                 selec_list[i][0] == "Interferometer"
                 or selec_list[i][0] == "Both Graphs"
             ):
-                #comment out the following block for the local test
-                n = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
-                nn = wlmData.dll.GetPatternItemSize(wlmConst.cSignal1Interferometers)
-                wlmData.dll.SetPattern(
-                    wlmConst.cSignal1Interferometers, wlmConst.cPatternEnable
-                )
-                X = wlmData.dll.GetPatternNum(i + 1, wlmConst.cSignal1Interferometers)
-                wlmData.dll.GetPatternDataNum(i + 1, wlmConst.cSignalAnalysisX, X)
-                Interferometer[i] = list(np.ctypeslib.as_array(X, (n // nn,)))
-                to_send[1] = Interferometer
-
-                # #line for the local test
-                # test.randomPattern(i+1)
-                # Interferometer[i] =test.patternList[i]
+                # #comment out the following block for the local test
+                # n = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
+                # nn = wlmData.dll.GetPatternItemSize(wlmConst.cSignal1Interferometers)
+                # wlmData.dll.SetPattern(
+                #     wlmConst.cSignal1Interferometers, wlmConst.cPatternEnable
+                # )
+                # X = wlmData.dll.GetPatternNum(i + 1, wlmConst.cSignal1Interferometers)
+                # wlmData.dll.GetPatternDataNum(i + 1, wlmConst.cSignalAnalysisX, X)
+                # Interferometer[i] = list(np.ctypeslib.as_array(X, (n // nn,)))
                 # to_send[1] = Interferometer
 
-            # comment the following block for the local test
-            # Try to change output voltage on the NI device according to PID output
-            try:
-               pid_out = selec_list[i][2]
-               with nidaqmx.Task() as task:
-                   # Add in the two available channels
-                   task.ao_channels.add_ao_voltage_chan("Dev1/ao0")
-                   task.ao_channels.add_ao_voltage_chan("Dev1/ao1")
+                #line for the local test
+                test.randomPattern(i+1)
+                Interferometer[i] =test.patternList[i]
+                to_send[1] = Interferometer
 
-                   input = np.array([pid_out, pid_out])
+            # # comment the following block for the local test
+            # # Try to change output voltage on the NI device according to PID output
+            # try:
+            #    pid_out = selec_list[i][2]
+            #    with nidaqmx.Task() as task:
+            #        # Add in the two available channels
+            #        task.ao_channels.add_ao_voltage_chan("Dev1/ao0")
+            #        task.ao_channels.add_ao_voltage_chan("Dev1/ao1")
 
-                   # Set the voltage to whatever values are specified in the input array
-                   stream_writers.AnalogMultiChannelWriter(
-                       task.out_stream, auto_start=True
-                   ).write_one_sample(input)
+            #        input = np.array([pid_out, pid_out])
 
-            except:
-                pass
+            #        # Set the voltage to whatever values are specified in the input array
+            #        stream_writers.AnalogMultiChannelWriter(
+            #            task.out_stream, auto_start=True
+            #        ).write_one_sample(input)
+
+            # except:
+            #     pass
         to_send = [Wavelength, Interferometer,exposures,PIDs,Targets]
         # Send the acquired data
         msgLength=f"{len(pickle.dumps(to_send)):<{HEADERLENGTH}}"
