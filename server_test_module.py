@@ -25,6 +25,12 @@ class wlmTest:
     def SetExposureNum(self,channel,num,expIn):
         self.expTimes[channel-1]=expIn
     
+    def GetExposureNum(self,channel,option):
+        #change the exposure on WLM side with a 1 per cent chance
+        if random.randint(1,100)<=1:
+            self.expTimes[channel-1]= 69
+        return self.expTimes[channel-1]
+    
     def SetSwitcherSignalStates(self,channel,num,intInput):
         if intInput==1:
             self.activeChannel[channel-1]=True

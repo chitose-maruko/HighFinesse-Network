@@ -76,29 +76,50 @@ def client_handler(connection,counter):
     client_id = counter
     exposures=[False,Exposures]
     client = client_list[counter]
+
     while True:
+        exp_overwrite =False
         length=int(connection.recv(8))
         msg=[]
         while len(B"".join(msg))<length:
             temp=connection.recv(64)
             msg.append(temp)
         selec_list = pickle.loads(b"".join(msg))
-        if client.update:
+        ch_active=[]
+        for i in range(8):
+            if selec_list[i][0]!= "Off":
+                ch_active.append(i+1)
+        for ch in ch_active:
+            try:
+                test.SetSwitcherSignalStates(ch, 1, 1)
+
+                #exposure reading from the wavemeter itself
+                expo_read=test.GetExposureNum(ch,0) 
+                if expo_read!=Exposures[ch-1]:
+                    Exposures[ch-1]=expo_read
+                    exp_overwrite=True
+                    client.update =True
+                    print("Ch.", ch, " Exposure chnaged by WLM Application")
+            except: 
+                pass
+        #reflect the parameter updates from another client if there is any but overwrite
+        # it if there is newer update
+        if client.update and (not selec_list[-1][0]):
             exposures[0]=True
             exposures[1]=Exposures
             client.update=False
 
         if selec_list[-1][0]==True:
-            for i in range(8):
+            for ch in ch_active:
             # Set the exposure times accoring to selec_list
                 try:
                     # #line for machine test
-                    # wlmData.dll.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
+                    # wlmData.dll.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
 
                     #line for local test
-                    test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
-                    Exposures[i]=int(selec_list[i][1])
-                    
+                    if exp_overwrite==False:
+                        test.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
+                        Exposures[i]=int(selec_list[ch-1][1])                  
                 except:
                     pass
 
@@ -106,22 +127,23 @@ def client_handler(connection,counter):
             for i in range(len(client_list)):
                 if i!=client_id:
                     client_list[i].update=True
+                elif exp_overwrite:
+                    client_list[i].update=True
                 else:
                     client_list[i].update=False
-        for i in range(8):
-            # Set the exposure times accoring to selec_list
-            try:
-                test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
-                Exposures[1][i]=selec_list[i][1]
-            except:
-                 pass
+        for ch in ch_active:
+            # # Set the exposure times accoring to selec_list
+            # try:
+            #     test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
+            #     Exposures[1][i]=selec_list[i][1]
+            # except:
+            #      pass
 
-            # Manage sending the wavelength data
-            if selec_list[i][0] != "Off":
-                #line for the local test
-                test.SetSwitcherSignalStates(i + 1, 1, 1)
-                test_wavelength = test.GetWavelengthNum(i + 1, 0)
-                Wavelength[i] = f"{test_wavelength}"
+            # # Manage sending the wavelength data
+            # if selec_list[][0] != "Off":
+            #line for the local test
+            test_wavelength = test.GetWavelengthNum(ch, 0)
+            Wavelength[ch-1] = f"{test_wavelength}"
 
                 # #line for the actual run
                 # wlmData.dll.SetSwitcherSignalStates(i + 1, 1, 1)
@@ -132,19 +154,19 @@ def client_handler(connection,counter):
                 #     Wavelength[i] = f"Error code: {test_wavelength}"
                 # else:
                 #     Wavelength[i] = f"{test_wavelength}"
-                to_send[0] = Wavelength
+            to_send[0] = Wavelength
             # Don't bother reading the wavelength if the client doesn't request it
-            elif selec_list[i][0] == "Off":
-                #line for local test
-                test.SetSwitcherSignalStates(i + 1, 0, 0)
-                # #line for actual test
-                # wlmData.dll.SetSwitcherSignalStates(i + 1, 0, 0)
-                Wavelength[i] = "---"
-                Interferometer[i] = []
+            # elif selec_list[i][0] == "Off":
+            #     #line for local test
+            #     test.SetSwitcherSignalStates(i + 1, 0, 0)
+            #     # #line for actual test
+            #     # wlmData.dll.SetSwitcherSignalStates(i + 1, 0, 0)
+            #     Wavelength[i] = "---"
+            #     Interferometer[i] = []
             # Manage sending the interferometer data
             if (
-                selec_list[i][0] == "Interferometer"
-                or selec_list[i][0] == "Both Graphs"
+                selec_list[ch-1][0] == "Interferometer"
+                or selec_list[ch-1][0] == "Both Graphs"
             ):
                 # #comment out the following block for the local test
                 # n = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
@@ -158,8 +180,8 @@ def client_handler(connection,counter):
                 # to_send[1] = Interferometer
 
                 #line for the local test
-                test.randomPattern(i+1)
-                Interferometer[i] =test.patternList[i]
+                test.randomPattern(ch)
+                Interferometer[ch-1] =test.patternList[ch-1]
                 to_send[1] = Interferometer
 
             # # comment the following block for the local test

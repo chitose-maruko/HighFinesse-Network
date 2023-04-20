@@ -87,7 +87,7 @@ class Transmission(QtCore.QObject):
             ClientSocket.sendall(trs_length.encode())
             ClientSocket.sendall(to_send)
             #reset the update flags once the data is sent
-            if counter >1:
+            if counter >0:
                 expo_flag=False
             else:
                 counter+=1
