@@ -14,9 +14,6 @@ import numpy as np
 import nidaqmx
 from nidaqmx import stream_writers
 
-# #modules for the local test
-# from server_test_module import wlmTest
-# test = wlmTest()
 #global variable for the header of the message
 HEADERLENGTH=8
 # Load in the DLL provided by HighFinesse
@@ -32,9 +29,6 @@ except:
     )
 
 # Specify the IP address and TCP port which will be used to host the server
-# #modified for the local test
-# host = "127.0.0.1"
-# port = 5000
 #for machine test
 host = "192.168.1.30"
 port = 5353
@@ -43,8 +37,6 @@ port = 5353
 exp_Time=8*[1] 
 PID_val = 8 * [[False, 0.0, 0.0, 0.0]]
 
-# #line for local test
-# test.SetSwitcherMode(1)
 
 #Put the wavemeter in switcher mode
 wlmData.dll.SetSwitcherMode(1)
@@ -134,8 +126,6 @@ def client_handler(connection,counter):
             # Set the exposure times accoring to selec_list
                 try:
                     if exp_overwrite==False:
-                        # #line for local test
-                        # test.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
                         #line for machine test
                         wlmData.dll.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
                         Exposures[i]=int(selec_list[ch-1][1])                  
@@ -151,12 +141,6 @@ def client_handler(connection,counter):
                 else:
                     client_list[i].update=False
         for ch in ch_active:
-
-            # # Manage sending the wavelength data
-            # #line for the local test
-            # test_wavelength = test.GetWavelengthNum(ch, 0)
-            # Wavelength[ch-1] = f"{test_wavelength}"
-
             #line for the machine run
             test_wavelength = wlmData.dll.GetWavelengthNum(ch, 0)
             if test_wavelength == wlmConst.ErrOutOfRange:
@@ -181,11 +165,6 @@ def client_handler(connection,counter):
                 wlmData.dll.GetPatternDataNum(ch, wlmConst.cSignalAnalysisX, X)
                 Interferometer[ch-1] = list(np.ctypeslib.as_array(X, (n // nn,)))
                 to_send[1] = Interferometer
-
-                # #line for the local test
-                # test.randomPattern(ch)
-                # Interferometer[ch-1] =test.patternList[ch-1]
-                # to_send[1] = Interferometer
 
             # comment the following block for the local test
             # Try to change output voltage on the NI device according to PID output
