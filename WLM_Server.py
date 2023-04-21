@@ -239,12 +239,6 @@ def start_server(host, port):
     while True:
         accept_connections(ServerSocket,counter)
         counter +=1
-
-def expTest():
-    for i in range(20):
-        global test
-        print(test.expTimes)
-        time.sleep(3)
 class ConnectionState():
     def __init__(self):
         self.update =False
