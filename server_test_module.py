@@ -25,7 +25,7 @@ class wlmTest:
     def SetExposureNum(self,channel,num,expIn):
         self.expTimes[channel-1]=expIn
     
-    def GetExposureNum(self,channel,option):
+    def GetExposureNum(self,channel,option,option2):
         #change the exposure on WLM side with a 1 per cent chance
         if random.randint(1,100)<=1:
             self.expTimes[channel-1]= 69

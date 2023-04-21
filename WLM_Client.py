@@ -18,7 +18,7 @@ CONFIGS_FILE = path.join(FILE_DIR, "configs.ini")
 
 # IP address and TCP port of server
 #HOST and Port
-HOST = "192.168.1.56"
+HOST = "192.168.1.30"
 PORT = 5353
 # #HOST and Port is modified for the local test
 # HOST = "127.0.0.1"

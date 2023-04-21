@@ -36,7 +36,7 @@ except:
 # host = "127.0.0.1"
 # port = 5000
 #for machine test
-host = "192.168.1.56"
+host = "192.168.1.30"
 port = 5353
 
 #global variable to be shared among all clients and the server
@@ -93,13 +93,12 @@ def client_handler(connection,counter):
                 # test.SetSwitcherSignalStates(ch, 1, 1)
                 wlmData.dll.SetSwitcherSignalStates(ch, 1, 1)
                 #exposure reading from the wavemeter itself
-                expo_read=test.GetExposureNum(ch,0) 
+                expo_read=wlmData.dll.GetExposureNum(ch,1,0) 
                 if expo_read!=Exposures[ch-1]:
                     Exposures[ch-1]=expo_read
                     exp_overwrite=True
                     for elm in client_list:
                         elm.update = True
-                    print("Ch.", ch, " Exposure chnaged by WLM Application")
             except: 
                 pass
         #reflect the parameter updates from another client if there is any but overwrite
@@ -147,11 +146,11 @@ def client_handler(connection,counter):
             #line for the actual run
             test_wavelength = wlmData.dll.GetWavelengthNum(ch, 0)
             if test_wavelength == wlmConst.ErrOutOfRange:
-                Wavelength[i] = "Error: Out of Range"
+                Wavelength[ch-1] = "Error: Out of Range"
             elif test_wavelength <= 0:
-                Wavelength[i] = f"Error code: {test_wavelength}"
+                Wavelength[ch-1] = f"Error code: {test_wavelength}"
             else:
-                Wavelength[i] = f"{test_wavelength}"
+                Wavelength[ch-1] = f"{test_wavelength}"
             to_send[0] = Wavelength
             # Don't bother reading the wavelength if the client doesn't request it
             # elif selec_list[i][0] == "Off":
@@ -172,9 +171,9 @@ def client_handler(connection,counter):
                 wlmData.dll.SetPattern(
                     wlmConst.cSignal1Interferometers, wlmConst.cPatternEnable
                 )
-                X = wlmData.dll.GetPatternNum(i + 1, wlmConst.cSignal1Interferometers)
-                wlmData.dll.GetPatternDataNum(i + 1, wlmConst.cSignalAnalysisX, X)
-                Interferometer[i] = list(np.ctypeslib.as_array(X, (n // nn,)))
+                X = wlmData.dll.GetPatternNum(ch, wlmConst.cSignal1Interferometers)
+                wlmData.dll.GetPatternDataNum(ch, wlmConst.cSignalAnalysisX, X)
+                Interferometer[ch-1] = list(np.ctypeslib.as_array(X, (n // nn,)))
                 to_send[1] = Interferometer
 
                 # #line for the local test
@@ -185,7 +184,7 @@ def client_handler(connection,counter):
             # comment the following block for the local test
             # Try to change output voltage on the NI device according to PID output
             try:
-               pid_out = selec_list[i][2]
+               pid_out = selec_list[ch-1][2]
                with nidaqmx.Task() as task:
                    # Add in the two available channels
                    task.ao_channels.add_ao_voltage_chan("Dev1/ao0")
