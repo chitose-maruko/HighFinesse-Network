@@ -98,7 +98,8 @@ def client_handler(connection,counter):
                 if expo_read!=Exposures[ch-1]:
                     Exposures[ch-1]=expo_read
                     exp_overwrite=True
-                    client.update =True
+                    for elm in client_list:
+                        elm.update = True
                     print("Ch.", ch, " Exposure chnaged by WLM Application")
             except: 
                 pass

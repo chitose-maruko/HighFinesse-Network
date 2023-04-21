@@ -6,6 +6,7 @@ import socket
 import pickle
 import sys
 import time
+import logging
 
 from os import path, system
 from pyqtgraph.Qt import QtCore, QtGui
@@ -98,11 +99,11 @@ class Transmission(QtCore.QObject):
             msg = []
             # Reads data sent from the host, stores in msg until full message is received
             while len(b"".join(msg)) < length:
-                temp = ClientSocket.recv(1024)
+                temp = ClientSocket.recv(2048)
                 msg.append(temp)
             # Unpickle msg
             data = pickle.loads(b"".join(msg))
-
+            DtEnd = time.perf_counter()-ti
             # Store wavelength and interferometer data in separate lists
             wvl_data = data[0]
             int_data = data[1]
@@ -165,6 +166,8 @@ class Transmission(QtCore.QObject):
                 "expo_t":expo_update
             }
             self.data.emit([int_data, wvl_error, wvl_data,upd_dict])
+            #DtEnd = time.perf_counter()-ti
+            print(DtEnd)
 
 # This class sets up and runs the GUI, while using the Transmission class in a separate thread
 # to interact with the server
