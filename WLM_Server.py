@@ -14,9 +14,9 @@ import numpy as np
 import nidaqmx
 from nidaqmx import stream_writers
 
-#modules for the local test
-from server_test_module import wlmTest
-test = wlmTest()
+# #modules for the local test
+# from server_test_module import wlmTest
+# test = wlmTest()
 #global variable for the header of the message
 HEADERLENGTH=8
 # Load in the DLL provided by HighFinesse
