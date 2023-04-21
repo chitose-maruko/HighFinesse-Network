@@ -35,7 +35,7 @@ class wlmTest:
         if intInput==1:
             self.activeChannel[channel-1]=True
         elif intInput==0:
-            self.activeChannel[channel-1]=False
+            self.activeChannel[channel-1]= False
         else:
             print("Invalid input")
     
