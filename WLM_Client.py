@@ -17,12 +17,12 @@ FILE_DIR = path.dirname(path.abspath(__file__))
 CONFIGS_FILE = path.join(FILE_DIR, "configs.ini")
 
 # IP address and TCP port of server
-# #HOST and Port
-# HOST = "192.168.1.56"
-# PORT = 5353
-#HOST and Port is modified for the local test
-HOST = "127.0.0.1"
-PORT = 5000
+#HOST and Port
+HOST = "192.168.1.56"
+PORT = 5353
+# #HOST and Port is modified for the local test
+# HOST = "127.0.0.1"
+# PORT = 5000
 
 counter=0
 # Connect to server, display error if connection fails
