@@ -5,14 +5,14 @@
 import socket
 import threading
 import time
-# import wlmData
-# import wlmConst
+import wlmData
+import wlmConst
 import random
 import sys
 import pickle
 import numpy as np
-# import nidaqmx
-# from nidaqmx import stream_writers
+import nidaqmx
+from nidaqmx import stream_writers
 
 #modules for the local test
 from server_test_module import wlmTest
@@ -22,32 +22,32 @@ HEADERLENGTH=8
 # Load in the DLL provided by HighFinesse
 DLL_PATH = "wlmData.dll"
 
-# #comment out in case of local test
-# try:
-#     wlmData.LoadDLL(DLL_PATH)
-# except:
-#     sys.exit(
-#         "Error: Couldn't find DLL on path %s. Please check the DLL_PATH variable!"
-#         % DLL_PATH
-#     )
+#comment out in case of local test
+try:
+    wlmData.LoadDLL(DLL_PATH)
+except:
+    sys.exit(
+        "Error: Couldn't find DLL on path %s. Please check the DLL_PATH variable!"
+        % DLL_PATH
+    )
 
 # Specify the IP address and TCP port which will be used to host the server
-#modified for the local test
-host = "127.0.0.1"
-port = 5000
-# #for machine test
-# host = "192.168.1.30"
-# port = 5353
+# #modified for the local test
+# host = "127.0.0.1"
+# port = 5000
+#for machine test
+host = "192.168.1.30"
+port = 5353
 
 #global variable to be shared among all clients and the server
 exp_Time=8*[1] 
 PID_val = 8 * [[False, 0.0, 0.0, 0.0]]
 
-#line for local test
-test.SetSwitcherMode(1)
+# #line for local test
+# test.SetSwitcherMode(1)
 
-# #Put the wavemeter in switcher mode
-# wlmData.dll.SetSwitcherMode(1)
+#Put the wavemeter in switcher mode
+wlmData.dll.SetSwitcherMode(1)
 
 # Initialize the wavelength list, zeroth entry serves as an identifier for the client
 Wavelength = 8 * [0]
@@ -58,8 +58,7 @@ Exposures=8*[1]
 PIDs=[False,8*[False,0,0,0]]
 Targets=[False]
 Channels=[8*[False]]
-# Initialize the combined list which will be sent over the network
-#to_send = [Wavelength, Interferometer,Exposures,PIDs,Targets]
+
 #global variable to indicate the updates avaialbility for parameters
 update=True
 #Initialize the list of parameter update avaialbilities for each client
@@ -97,21 +96,22 @@ def client_handler(connection,counter):
                     if ch[i]:
                         ch_count+=1
                 if ch_count<2:
-                    test.SetSwitcherSignalStates(i+1, 0, 0)
+                    # test.SetSwitcherSignalStates(i+1, 0, 0)
+                    wlmData.dll.SetSwitcherSignalStates(i+1, 0, 0)
                     Channels[0][i]=False
             else:
                 Channels[client_id +1][i]=False
 
         for ch in ch_active:
             try:
-                test.SetSwitcherSignalStates(ch, 1, 1)
+                #test.SetSwitcherSignalStates(ch, 1, 1)
                 Channels[client_id +1][ch-1]=True
                 Channels[0][ch-1]=True
-                # wlmData.dll.SetSwitcherSignalStates(ch, 1, 1)
+                wlmData.dll.SetSwitcherSignalStates(ch, 1, 1)
 
                 #exposure reading from the wavemeter itself
-                #expo_read=wlmData.dll.GetExposureNum(ch,1,0) 
-                expo_read = test.GetExposureNum(ch, 1,0)
+                expo_read=wlmData.dll.GetExposureNum(ch,1,0) 
+                # expo_read = test.GetExposureNum(ch, 1,0)
 
                 
 
@@ -134,10 +134,10 @@ def client_handler(connection,counter):
             # Set the exposure times accoring to selec_list
                 try:
                     if exp_overwrite==False:
-                        #line for local test
-                        test.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
-                        # #line for machine test
-                        # wlmData.dll.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
+                        # #line for local test
+                        # test.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
+                        #line for machine test
+                        wlmData.dll.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
                         Exposures[i]=int(selec_list[ch-1][1])                  
                 except:
                     pass
@@ -151,56 +151,41 @@ def client_handler(connection,counter):
                 else:
                     client_list[i].update=False
         for ch in ch_active:
-            # # Set the exposure times accoring to selec_list
-            # try:
-            #     test.SetExposureNum(i + 1, 1, int(selec_list[i][1]))
-            #     Exposures[1][i]=selec_list[i][1]
-            # except:
-            #      pass
 
             # # Manage sending the wavelength data
-            # if selec_list[][0] != "Off":
-            #line for the local test
-            test_wavelength = test.GetWavelengthNum(ch, 0)
-            Wavelength[ch-1] = f"{test_wavelength}"
+            # #line for the local test
+            # test_wavelength = test.GetWavelengthNum(ch, 0)
+            # Wavelength[ch-1] = f"{test_wavelength}"
 
-            # #line for the machine run
-            # test_wavelength = wlmData.dll.GetWavelengthNum(ch, 0)
-            # if test_wavelength == wlmConst.ErrOutOfRange:
-            #     Wavelength[ch-1] = "Error: Out of Range"
-            # elif test_wavelength <= 0:
-            #     Wavelength[ch-1] = f"Error code: {test_wavelength}"
-            # else:
-            #     Wavelength[ch-1] = f"{test_wavelength}"
-            # to_send[0] = Wavelength
-            # Don't bother reading the wavelength if the client doesn't request it
-            # elif selec_list[i][0] == "Off":
-            #     #line for local test
-            #     test.SetSwitcherSignalStates(i + 1, 0, 0)
-            #     # #line for actual test
-            #     # wlmData.dll.SetSwitcherSignalStates(i + 1, 0, 0)
-            #     Wavelength[i] = "---"
-            #     Interferometer[i] = []
+            #line for the machine run
+            test_wavelength = wlmData.dll.GetWavelengthNum(ch, 0)
+            if test_wavelength == wlmConst.ErrOutOfRange:
+                Wavelength[ch-1] = "Error: Out of Range"
+            elif test_wavelength <= 0:
+                Wavelength[ch-1] = f"Error code: {test_wavelength}"
+            else:
+                Wavelength[ch-1] = f"{test_wavelength}"
+            to_send[0] = Wavelength
             # Manage sending the interferometer data
             if (
                 selec_list[ch-1][0] == "Interferometer"
                 or selec_list[ch-1][0] == "Both Graphs"
             ):
-                # #comment out the following block for the local test
-                # n = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
-                # nn = wlmData.dll.GetPatternItemSize(wlmConst.cSignal1Interferometers)
-                # wlmData.dll.SetPattern(
-                #     wlmConst.cSignal1Interferometers, wlmConst.cPatternEnable
-                # )
-                # X = wlmData.dll.GetPatternNum(ch, wlmConst.cSignal1Interferometers)
-                # wlmData.dll.GetPatternDataNum(ch, wlmConst.cSignalAnalysisX, X)
-                # Interferometer[ch-1] = list(np.ctypeslib.as_array(X, (n // nn,)))
-                # to_send[1] = Interferometer
-
-                #line for the local test
-                test.randomPattern(ch)
-                Interferometer[ch-1] =test.patternList[ch-1]
+                #comment out the following block for the local test
+                n = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
+                nn = wlmData.dll.GetPatternItemSize(wlmConst.cSignal1Interferometers)
+                wlmData.dll.SetPattern(
+                    wlmConst.cSignal1Interferometers, wlmConst.cPatternEnable
+                )
+                X = wlmData.dll.GetPatternNum(ch, wlmConst.cSignal1Interferometers)
+                wlmData.dll.GetPatternDataNum(ch, wlmConst.cSignalAnalysisX, X)
+                Interferometer[ch-1] = list(np.ctypeslib.as_array(X, (n // nn,)))
                 to_send[1] = Interferometer
+
+                # #line for the local test
+                # test.randomPattern(ch)
+                # Interferometer[ch-1] =test.patternList[ch-1]
+                # to_send[1] = Interferometer
 
             # comment the following block for the local test
             # Try to change output voltage on the NI device according to PID output
