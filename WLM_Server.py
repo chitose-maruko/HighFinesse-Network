@@ -55,8 +55,8 @@ Wavelength = 8 * [0]
 Interferometer = 8 * [[]]
 #Initialize the exposure time list, zeroth entry serves as an identifier whether there has been an update
 Exposures=8*[1]
-PIDs=[False,8*[False,0,0,0]]
-Targets=[False]
+PIDs=8*[[False,0,0,0]]
+Targets=8*["___"]
 Channels=[8*[False]]
 # Initialize the combined list which will be sent over the network
 #to_send = [Wavelength, Interferometer,Exposures,PIDs,Targets]
@@ -73,9 +73,13 @@ def client_handler(connection,counter):
     global client_updates
     global Exposures
     global client_list
+    global PIDs
     global Channels
+    global Targets
     client_id = counter
     exposures=[False,Exposures]
+    pids =[False,PIDs]
+    tgts=[False,Targets]
     client = client_list[counter]
 
     while True:
@@ -119,16 +123,25 @@ def client_handler(connection,counter):
                     Exposures[ch-1]=expo_read
                     exp_overwrite=True
                     for elm in client_list:
-                        elm.update = True
+                        elm.updateExpo = True
             except: 
                 pass
         #reflect the parameter updates from another client if there is any but overwrite
         # it if there is newer update
-        if client.update and (not selec_list[-1][0]):
+        if client.updateExpo and (not selec_list[-1][0]):
             exposures[0]=True
             exposures[1]=Exposures
-            client.update=False
+            client.updateExpo=False
 
+        if client.updatePID and (not selec_list[-1][1]):
+            pids[0]=True
+            pids[1]=PIDs
+            client.updatePID=False
+
+        if client.updateTgts and (not selec_list[-1][2]):
+            tgts[0]=True
+            tgts[1]=Targets
+        
         if selec_list[-1][0]==True:
             for ch in ch_active:
             # Set the exposure times accoring to selec_list
@@ -145,11 +158,27 @@ def client_handler(connection,counter):
             selec_list[-1][0]=False
             for i in range(len(client_list)):
                 if i!=client_id:
-                    client_list[i].update=True
+                    client_list[i].updateExpo=True
                 elif exp_overwrite:
-                    client_list[i].update=True
+                    client_list[i].updateExpo=True
                 else:
-                    client_list[i].update=False
+                    client_list[i].updateExpo=False
+        if selec_list[-1][1]:
+            PIDs=selec_list[-2]
+            for i in range(len(client_list)):
+                if i!=client_id:
+                    client_list[i].updatePID=True
+                else:
+                    client_list[i].updatePID=False
+
+        if selec_list[-1][2]:
+            Targets=selec_list[-3]
+            for i in range(len(client_list)):
+                if i!=client_id:
+                    client_list[i].updateTgts=True
+                else:
+                    client_list[i].updateTgts=False
+        
         for ch in ch_active:
             # # Set the exposure times accoring to selec_list
             # try:
@@ -220,16 +249,18 @@ def client_handler(connection,counter):
 
             except:
                 pass
-        to_send = [Wavelength, Interferometer,exposures,PIDs,Targets]
+        to_send = [Wavelength, Interferometer,exposures,pids,tgts]
         # Send the acquired data
         msgLength=f"{len(pickle.dumps(to_send)):<{HEADERLENGTH}}"
         connection.sendall(msgLength.encode())
         connection.sendall(pickle.dumps(to_send))
         exposures[0]=False
+        pids[0]=False
+        tgts[0]=False
         # Specified wait time to allow for multiple clients
         # Without this, opening an additional client causes the initial client program to freeze
         # This time delay could potentially be reduced
-        time.sleep(0.5)
+        time.sleep(0.8)
 
 
 # Create a function which will connect to clients and assign these to be managed in individual threads
@@ -263,7 +294,9 @@ def start_server(host, port):
         counter +=1
 class ConnectionState():
     def __init__(self):
-        self.update =False
+        self.updateExpo =False
+        self.updatePID=False
+        self.updateTgts=False
         self.options=8*["Off"]
         self.test =False
 client_list=[]
