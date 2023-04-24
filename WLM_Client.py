@@ -36,6 +36,7 @@ except socket.error as e:
 
 #define global variable to keep track of updates made by user
 expo_flag=False
+pid_flag=False
 # Define global variable which will store the desired mode, selected exposure time of each channel,
 # and the PID output for each channel
 # Starting values are Off with 1 ms exposure time and 0.0 for PID output
@@ -48,7 +49,7 @@ selec_list = [
     ["Off", "1", None],
     ["Off", "1", None],
     ["Off", "1", None],
-    [expo_flag,False,False]
+    [expo_flag,pid_flag,False]
 ]
 
 # Define another global variable to hold the target wavelengths, initialized to 0
@@ -77,6 +78,7 @@ class Transmission(QtCore.QObject):
         integral = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         global counter
         global expo_flag
+        global pid_flag
 
         while True:
             # Initial time measurement
@@ -90,9 +92,11 @@ class Transmission(QtCore.QObject):
             #reset the update flags once the data is sent
             if counter >0:
                 expo_flag=False
+                pid_flag =False
             else:
                 counter+=1
             selec_list[-1][0]=expo_flag
+            selec_list[-1][1]=pid_flag
 
             # Reads in the length of the message to be received
             length = int(ClientSocket.recv(8))
@@ -248,10 +252,13 @@ class Window(QtGui.QWidget):
 
             self.P[i] = QtGui.QLineEdit(parent=self)
             self.P[i].setStyleSheet("color: white")
+            self.P[i].textEdited.connect(self.flag_pid_change)
             self.I[i] = QtGui.QLineEdit(parent=self)
             self.I[i].setStyleSheet("color: white")
+            self.I[i].textEdited.connect(self.flag_pid_change)
             self.D[i] = QtGui.QLineEdit(parent=self)
             self.D[i].setStyleSheet("color: white")
+            self.D[i].textEdited.connect(self.flag_pid_change)
             P_lbl[i] = QtGui.QLabel("P:")
             P_lbl[i].setStyleSheet("color: white")
             I_lbl[i] = QtGui.QLabel("I:")
@@ -440,6 +447,15 @@ class Window(QtGui.QWidget):
         expo_flag=True
         selec_list[-1][0]=expo_flag
         counter =0
+
+    def flag_pid_change(self):
+        global pid_flag
+        global selec_list
+        global counter
+        pid_flag=True
+        selec_list[-1][1]=pid_flag
+        counter =0
+        print("PID changed")
 
 
 # Set up and run GUI
