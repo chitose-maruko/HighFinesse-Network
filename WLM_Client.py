@@ -130,37 +130,37 @@ class Transmission(QtCore.QObject):
                     if len(wvl_error[i]) > 30:
                         wvl_error[i].pop(0)
 
-            # Time interval for PID
-            dt = time.perf_counter() - ti
+            # # Time interval for PID
+            # dt = time.perf_counter() - ti
 
-            # Calculate the PID function output
-            #system("cls||clear")
-            for i in range(8):
-                if PID_val[i][0] == True:
-                    try:
-                        integral[i] += wvl_error[i][-1] * dt
-                        derivative = (wvl_error[i][-1] - wvl_error[i][-2]) / dt
-                        pid_out = (
-                            float(PID_val[i][1]) * wvl_error[i][-1]
-                            + float(PID_val[i][2]) * integral[i]
-                            + float(PID_val[i][3]) * derivative
-                        )
+            # # Calculate the PID function output
+            # #system("cls||clear")
+            # for i in range(8):
+            #     if PID_val[i][0] == True:
+            #         try:
+            #             integral[i] += wvl_error[i][-1] * dt
+            #             derivative = (wvl_error[i][-1] - wvl_error[i][-2]) / dt
+            #             pid_out = (
+            #                 float(PID_val[i][1]) * wvl_error[i][-1]
+            #                 + float(PID_val[i][2]) * integral[i]
+            #                 + float(PID_val[i][3]) * derivative
+            #             )
 
-                        # If statements prevent voltage range in Toptica rack from being exceeded
-                        if pid_out < 4 and pid_out > -0.0285:
-                            selec_list[i][2] = pid_out
-                        if pid_out >= 4:
-                            selec_list[i][2] = 4.0
-                        if pid_out <= -0.0285:
-                            selec_list[i][2] = -0.0285
-                        #print(f"Ch {i+1}: {selec_list[i][2]:.5f} V")
-                    except:
-                        print(f"Error in PID channel {i}")
-                # Don't compute PID if box not checked
-                elif PID_val[i] == False:
-                    selec_list[i][2] = None
-                    # resets integral
-                    integral[i] = 0
+            #             # If statements prevent voltage range in Toptica rack from being exceeded
+            #             if pid_out < 4 and pid_out > -0.0285:
+            #                 selec_list[i][2] = pid_out
+            #             if pid_out >= 4:
+            #                 selec_list[i][2] = 4.0
+            #             if pid_out <= -0.0285:
+            #                 selec_list[i][2] = -0.0285
+            #             #print(f"Ch {i+1}: {selec_list[i][2]:.5f} V")
+            #         except:
+            #             print(f"Error in PID channel {i}")
+            #     # Don't compute PID if box not checked
+            #     elif PID_val[i][0] == False:
+            #         selec_list[i][2] = None
+            #         # resets integral
+            #         integral[i] = 0
 
             # Send the data that has just been stored to another function for further operation
             upd_dict={
@@ -387,7 +387,10 @@ class Window(QtGui.QWidget):
         self.thread.start()
 
     def closeEvent(self, event):
+        global ClientSocket
         self.save_configs()
+        ClientSocket.shutdown(socket.SHUT_WR)
+        time.sleep(1)
 
         return super().closeEvent(event)
 
@@ -402,9 +405,19 @@ class Window(QtGui.QWidget):
                 self.P[i].setText(self.settings.value("P"))
                 self.I[i].setText(self.settings.value("I"))
                 self.D[i].setText(self.settings.value("D"))
+                selec_list[i][0] = self.menu_master[i].currentText()
+                selec_list[i][1] = self.expo_master[i].text()
+                selec_list[-3][i] = self.tgt_master[i].text()
+                selec_list[-2][i] = [
+                    self.pid_master[i].isChecked(),
+                    self.P[i].text(),
+                    self.I[i].text(),
+                    self.D[i].text(),
+            ]
                 self.settings.endGroup()
 
     def save_configs(self):
+
         for i in range(8):
             self.settings.beginGroup(str(i))
             self.settings.setValue("menu", self.menu_master[i].currentIndex())
