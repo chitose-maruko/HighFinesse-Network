@@ -205,7 +205,6 @@ def client_handler(connection,counter):
                 Wavelength[ch-1] = f"Error code: {test_wavelength}"
             else:
                 Wavelength[ch-1] = f"{test_wavelength}"
-            to_send[0] = Wavelength
             # Manage sending the interferometer data
             if (
                 selec_list[ch-1][0] == "Interferometer"
@@ -220,7 +219,6 @@ def client_handler(connection,counter):
                 X = wlmData.dll.GetPatternNum(ch, wlmConst.cSignal1Interferometers)
                 wlmData.dll.GetPatternDataNum(ch, wlmConst.cSignalAnalysisX, X)
                 Interferometer[ch-1] = list(np.ctypeslib.as_array(X, (n // nn,)))
-                to_send[1] = Interferometer
         
         to_send = [Wavelength, Interferometer,exposures,pids,tgts]
         # Send the acquired data
