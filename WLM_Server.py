@@ -274,9 +274,9 @@ def PID_calc():
                     # test_wavelength = test.GetWavelengthNum(i+1, 0)
                     # errors_current[i] = float(test_wavelength)-float(Targets[i])
                     #line for the machine run
-                    test_wavelength = wlmData.dll.GetWavelengthNum(ch, 0)
-                    if test_wavelength <= 0:
-                        print("Error code: {test_wavelength}")
+                    test_wavelength = wlmData.dll.GetWavelengthNum(i+1, 0)
+                    if test_wavelength <= 100:
+                        print(f"Error code: {test_wavelength}")
                     else:
                         errors_current[i] = float(test_wavelength)-float(Targets[i])
 
@@ -286,8 +286,7 @@ def PID_calc():
                 dt = float(tfs[i]-tis[i])
                 dtTot+=dt
                 cts+=1
-                if cts%(8*10**3)==0:
-                    print(dtTot/cts)
+                
                 tis[i]=tfs[i]
                 try:
 
@@ -299,6 +298,12 @@ def PID_calc():
                                 + float(PIDs[i][2]) * integrals[i]
                                 + float(PIDs[i][3]) * derivative
                             )
+                    
+                except:
+                    pass
+                if cts%(8*10**3)==0:
+                        print(dt)
+                try:
                     if pid_out < 4 and pid_out > -0.0285:
                         output_PID(i+1,pid_out)
                     elif pid_out >= 4:
@@ -306,6 +311,7 @@ def PID_calc():
                     else:
                         output_PID(i+1,-0.0285)
                     #print(f"Ch {i+1}: {selec_list[i][2]:.5f} V")
+                    
                 except:
                     pass
                         #print(f"Error in PID channel {i}")
