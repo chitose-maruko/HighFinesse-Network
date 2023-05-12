@@ -125,13 +125,11 @@ def client_handler(connection,counter):
                 #test.SetSwitcherSignalStates(ch, 1, 1)
                 Channels[int(client_id) +1][ch-1]=True
                 Channels[0][ch-1]=True
-                if CAL:
-                    time.sleep(2.5)
+                if not CAL:
                     wlmData.dll.SetSwitcherSignalStates(ch, 1, 1)
 
                 #exposure reading from the wavemeter itself
-                if CAL:
-                    time.sleep(2.5)
+                if not CAL:
                     expo_read=wlmData.dll.GetExposureNum(ch,1,0) 
                 # expo_read = test.GetExposureNum(ch, 1,0)
 
@@ -159,8 +157,8 @@ def client_handler(connection,counter):
         if client.updateTgts and (not selec_list[-1][2]):
             tgts[0]=True
             tgts[1]=Targets
-        
-        if selec_list[-1][0]==True:
+
+        if selec_list[-1][0] or expoSkipped:
             for ch in ch_active:
             # Set the exposure times accoring to selec_list
                 try:
@@ -169,11 +167,14 @@ def client_handler(connection,counter):
                         # test.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
                         #line for machine test
                         if CAL:
-                            time.sleep(2.5)
-                        wlmData.dll.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
-                        Exposures[i]=int(selec_list[ch-1][1])                  
+                            expoSkipped =True
+                        else:
+                            wlmData.dll.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
+                            Exposures[i]=int(selec_list[ch-1][1])                  
                 except:
                     pass
+                if expoSkipped:
+                    expoSkipped=False
 
             selec_list[-1][0]=False
             for key in client_dict:
