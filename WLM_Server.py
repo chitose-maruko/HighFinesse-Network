@@ -296,26 +296,26 @@ def PID_calc():
                     pass
                 if PIDs[i][2]==0:
                     integrals[i]=0
-                
-                tfs[i] = time.perf_counter()
-                dt = float(tfs[i]-tis[i])
-                dtTot+=dt
-                cts+=1
-                
-                tis[i]=tfs[i]
-                try:
-
-                    error_now=errors_current[i]
-                    error_prev=errors_prev[i]
-                    integrals[i]+=error_now*dt
-                    derivative = (error_now-error_prev)/dt
-                    pid_out = (float(PIDs[i][1]) * error_now
-                                + float(PIDs[i][2]) * integrals[i]
-                                + float(PIDs[i][3]) * derivative
-                            ) +offsets[i]
+                if errors_current !=error_prev:
+                    tfs[i] = time.perf_counter()
+                    dt = float(tfs[i]-tis[i])
+                    dtTot+=dt
+                    cts+=1
                     
-                except:
-                    pass
+                    tis[i]=tfs[i]
+                    try:
+
+                        error_now=errors_current[i]
+                        error_prev=errors_prev[i]
+                        integrals[i]+=error_now*dt
+                        derivative = (error_now-error_prev)/dt
+                        pid_out = (float(PIDs[i][1]) * error_now
+                                    + float(PIDs[i][2]) * integrals[i]
+                                    + float(PIDs[i][3]) * derivative
+                                ) +offsets[i]
+                        
+                    except:
+                        pass
                 if cts%(8*10**3)==0:
                         print(dt)
                 try:
