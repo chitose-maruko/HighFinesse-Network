@@ -380,8 +380,11 @@ def autocalibrate():
         #pause all measurement before the calibration
         wlmData.dll.Operation(wlmConst.cCtrlStopAll)
         print('measurement paused for calibration')
-        wlmData.dll.Operation(wlmConst.cCtrlStartMeasurement)
-        print('calibration completed')
+        calOut=wlmData.dll.Operation(wlmConst.cCtrlStartMeasurement)
+        if calOut==0:
+            print('calibration completed')
+        else:
+            print('calibration failed')
     except:
         pass
     CAL=False
