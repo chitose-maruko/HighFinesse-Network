@@ -120,8 +120,6 @@ def client_handler(connection,counter):
             else:
                 Channels[int(client_id) +1][i]=False
 
-        if CAL:
-            time.sleep(2.5)
         for ch in ch_active:
             try:
                 #test.SetSwitcherSignalStates(ch, 1, 1)
@@ -209,17 +207,20 @@ def client_handler(connection,counter):
             # Wavelength[ch-1] = f"{test_wavelength}"
 
             #line for the machine run
-            test_wavelength = wlmData.dll.GetWavelengthNum(ch, 0)
-            if test_wavelength == wlmConst.ErrOutOfRange:
-                Wavelength[ch-1] = "Error: Out of Range"
-            elif test_wavelength <= 0:
-                Wavelength[ch-1] = f"Error code: {test_wavelength}"
+            if CAL:
+                Wavelength[ch-1]="Calibrating..."
             else:
-                Wavelength[ch-1] = f"{test_wavelength}"
-            # Manage sending the interferometer data
+                test_wavelength = wlmData.dll.GetWavelengthNum(ch, 0)
+                if test_wavelength == wlmConst.ErrOutOfRange:
+                    Wavelength[ch-1] = "Error: Out of Range"
+                elif test_wavelength <= 0:
+                    Wavelength[ch-1] = f"Error code: {test_wavelength}"
+                else:
+                    Wavelength[ch-1] = f"{test_wavelength}"
+                # Manage sending the interferometer data
             if (
-                selec_list[ch-1][0] == "Interferometer"
-                or selec_list[ch-1][0] == "Both Graphs"
+                    (selec_list[ch-1][0] == "Interferometer"
+                    or selec_list[ch-1][0] == "Both Graphs") and not CAL
             ):
                 #comment out the following block for the local test
                 n = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
@@ -267,6 +268,7 @@ def PID_calc():
     global PIDs
     global Targets
     global offset
+    global CAL
     ti = time.perf_counter()+0
     tis = 8*[ti]
     tfs=8*[0.0]
@@ -280,7 +282,7 @@ def PID_calc():
     print("PID operation started")
     while True:
         for i in range(8):
-            if PIDs[i][0]:
+            if PIDs[i][0] and not CAL:
                 try:
                     #line for the machine run
                     test_wavelength = wlmData.dll.GetWavelengthNum(i+1, 0)
@@ -352,6 +354,8 @@ def start_server(host, port):
     print(f"Server is listening on TCP port {port}...")
     ServerSocket.listen()
     while True:
+        calThread=threading.Thread(target=calibrationHandler,args=())
+        calThread.start()
         accept_connections(ServerSocket,counter)
         Channels.append(8*[False])
         if counter==0:
@@ -370,16 +374,20 @@ client_dict={}
 start_server(host, port)
 
 def autocalibrate():
+    global CAL
+    CAL=True
     try:
-                    #pause all measurement before the calibration
-                    wlmData.dll.Operation(wlmConst.cCtrlStopAll)
-                    print('measurement paused')
-                    wlmData.dll.Operation(wlmConst.cCtrlStartMeasurement)
+        #pause all measurement before the calibration
+        wlmData.dll.Operation(wlmConst.cCtrlStopAll)
+        print('measurement paused for calibration')
+        wlmData.dll.Operation(wlmConst.cCtrlStartMeasurement)
+        print('calibration completed')
     except:
         pass
+    CAL=False
 def calibrationHandler():
     autocalibrate()
     calPeriod = 1*60 #calibration period in seconds
     while True:
-        time.sleep()
-        calThread = threading.Thread(target=autocalibrate, args=())
+        time.sleep(calPeriod)
+        autocalibrate()
