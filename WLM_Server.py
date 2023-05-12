@@ -14,6 +14,8 @@ import numpy as np
 import XEM3001_AD5676R_DAC
 fpga_dac = XEM3001_AD5676R_DAC.XEM3001_AD5676R_DAC()
 
+offset =2.5
+CAL =False
 # #modules for the local test
 # from server_test_module import wlmTest
 # test = wlmTest()
@@ -78,6 +80,7 @@ def client_handler(connection,counter):
     global Channels
     global Targets
     global initialize
+    global CAL
     client_id = str(counter)
     exposures=[False,Exposures]
     pids =[False,PIDs]
@@ -117,26 +120,29 @@ def client_handler(connection,counter):
             else:
                 Channels[int(client_id) +1][i]=False
 
-        for ch in ch_active:
-            try:
-                #test.SetSwitcherSignalStates(ch, 1, 1)
-                Channels[int(client_id) +1][ch-1]=True
-                Channels[0][ch-1]=True
-                wlmData.dll.SetSwitcherSignalStates(ch, 1, 1)
+        if CAL:
+            time.sleep(2.5)
+        else:
+            for ch in ch_active:
+                try:
+                    #test.SetSwitcherSignalStates(ch, 1, 1)
+                    Channels[int(client_id) +1][ch-1]=True
+                    Channels[0][ch-1]=True
+                    wlmData.dll.SetSwitcherSignalStates(ch, 1, 1)
 
-                #exposure reading from the wavemeter itself
-                expo_read=wlmData.dll.GetExposureNum(ch,1,0) 
-                # expo_read = test.GetExposureNum(ch, 1,0)
+                    #exposure reading from the wavemeter itself
+                    expo_read=wlmData.dll.GetExposureNum(ch,1,0) 
+                    # expo_read = test.GetExposureNum(ch, 1,0)
 
-                
+                    
 
-                if expo_read!=Exposures[ch-1]:
-                    Exposures[ch-1]=expo_read
-                    exp_overwrite=True
-                    for elm in client_dict:
-                        client_dict[elm].updateExpo = True
-            except: 
-                pass
+                    if expo_read!=Exposures[ch-1]:
+                        Exposures[ch-1]=expo_read
+                        exp_overwrite=True
+                        for elm in client_dict:
+                            client_dict[elm].updateExpo = True
+                except: 
+                    pass
         #reflect the parameter updates from another client if there is any but overwrite
         # it if there is newer update
         if client.updateExpo and (not selec_list[-1][0]):
@@ -255,6 +261,7 @@ def accept_connections(ServerSocket,counter):
 def PID_calc():
     global PIDs
     global Targets
+    global offset
     ti = time.perf_counter()+0
     tis = 8*[ti]
     tfs=8*[0.0]
@@ -263,16 +270,13 @@ def PID_calc():
     integrals=8*[0.0]
     cts=0
     dtTot=0
+    offsets = 8*[offset]
+    outputs=8*[0]
     print("PID operation started")
     while True:
         for i in range(8):
             if PIDs[i][0]:
                 try:
-                        # # Manage sending the wavelength data
-                    # if selec_list[][0] != "Off":
-                    # #line for the local test
-                    # test_wavelength = test.GetWavelengthNum(i+1, 0)
-                    # errors_current[i] = float(test_wavelength)-float(Targets[i])
                     #line for the machine run
                     test_wavelength = wlmData.dll.GetWavelengthNum(i+1, 0)
                     if test_wavelength <= 100:
@@ -282,6 +286,9 @@ def PID_calc():
 
                 except:
                     pass
+                if PIDs[i][2]==0:
+                    integrals[i]=0
+                
                 tfs[i] = time.perf_counter()
                 dt = float(tfs[i]-tis[i])
                 dtTot+=dt
@@ -297,7 +304,7 @@ def PID_calc():
                     pid_out = (float(PIDs[i][1]) * error_now
                                 + float(PIDs[i][2]) * integrals[i]
                                 + float(PIDs[i][3]) * derivative
-                            )
+                            ) +offsets[i]
                     
                 except:
                     pass
@@ -311,11 +318,13 @@ def PID_calc():
                     else:
                         output_PID(i+1,-0.0285)
                     #print(f"Ch {i+1}: {selec_list[i][2]:.5f} V")
+                    outputs[i]=pid_out
                     
                 except:
                     pass
                         #print(f"Error in PID channel {i}")
             else:
+                offsets[i]= outputs[i]
                 integrals[i]=0
         errors_prev=errors_current
 def output_PID(ch_num,vol_out):
@@ -324,8 +333,11 @@ def output_PID(ch_num,vol_out):
     except:
         pass
 
+
 # Lastly, create a function which starts the server
 def start_server(host, port):
+    for i in range(8):
+        output_PID(i+1,offset)
     counter =0
     ServerSocket = socket.socket()
     try:
@@ -351,3 +363,18 @@ class ConnectionState():
         self.test =False
 client_dict={}
 start_server(host, port)
+
+def autocalibrate():
+    try:
+                    #pause all measurement before the calibration
+                    wlmData.dll.Operation(wlmConst.cCtrlStopAll)
+                    print('measurement paused')
+                    wlmData.dll.Operation(wlmConst.cCtrlStartMeasurement)
+    except:
+        pass
+def calibrationHandler():
+    autocalibrate()
+    calPeriod = 1*60 #calibration period in seconds
+    while True:
+        time.sleep()
+        calThread = threading.Thread(target=autocalibrate, args=())
