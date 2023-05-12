@@ -122,27 +122,30 @@ def client_handler(connection,counter):
 
         if CAL:
             time.sleep(2.5)
-        else:
-            for ch in ch_active:
-                try:
-                    #test.SetSwitcherSignalStates(ch, 1, 1)
-                    Channels[int(client_id) +1][ch-1]=True
-                    Channels[0][ch-1]=True
+        for ch in ch_active:
+            try:
+                #test.SetSwitcherSignalStates(ch, 1, 1)
+                Channels[int(client_id) +1][ch-1]=True
+                Channels[0][ch-1]=True
+                if CAL:
+                    time.sleep(2.5)
                     wlmData.dll.SetSwitcherSignalStates(ch, 1, 1)
 
-                    #exposure reading from the wavemeter itself
+                #exposure reading from the wavemeter itself
+                if CAL:
+                    time.sleep(2.5)
                     expo_read=wlmData.dll.GetExposureNum(ch,1,0) 
-                    # expo_read = test.GetExposureNum(ch, 1,0)
+                # expo_read = test.GetExposureNum(ch, 1,0)
 
-                    
+                
 
-                    if expo_read!=Exposures[ch-1]:
-                        Exposures[ch-1]=expo_read
-                        exp_overwrite=True
-                        for elm in client_dict:
-                            client_dict[elm].updateExpo = True
-                except: 
-                    pass
+                if expo_read!=Exposures[ch-1]:
+                    Exposures[ch-1]=expo_read
+                    exp_overwrite=True
+                    for elm in client_dict:
+                        client_dict[elm].updateExpo = True
+            except: 
+                pass
         #reflect the parameter updates from another client if there is any but overwrite
         # it if there is newer update
         if client.updateExpo and (not selec_list[-1][0]):
@@ -167,6 +170,8 @@ def client_handler(connection,counter):
                         # #line for local test
                         # test.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
                         #line for machine test
+                        if CAL:
+                            time.sleep(2.5)
                         wlmData.dll.SetExposureNum(ch, 1, int(selec_list[ch-1][1]))
                         Exposures[i]=int(selec_list[ch-1][1])                  
                 except:
