@@ -170,34 +170,34 @@ def client_handler(connection,counter):
            
             if not CAL:
                  # # Manage sending the wavelength data
-                #line for the local test
-                test_wavelength = test.GetWavelengthNum(ch, 0)
-                Wavelength[ch-1] = f"{test_wavelength}"
+                # #line for the local test
+                # test_wavelength = test.GetWavelengthNum(ch, 0)
+                # Wavelength[ch-1] = f"{test_wavelength}"
                 
-                # #line for the machine run
-                # test_wavelength = wlmData.dll.GetWavelengthNum(ch, 0)
-                # if test_wavelength == wlmConst.ErrOutOfRange:
-                #     Wavelength[ch-1] = "Error: Out of Range"
-                # elif test_wavelength <= 0:
-                #     Wavelength[ch-1] = f"Error code: {test_wavelength}"
-                # else:
-                #     Wavelength[ch-1] = f"{test_wavelength}"
-                # Manage sending the interferometer data
+                #line for the machine run
+                test_wavelength = wlmData.dll.GetWavelengthNum(ch, 0)
+                if test_wavelength == wlmConst.ErrOutOfRange:
+                    Wavelength[ch-1] = "Error: Out of Range"
+                elif test_wavelength <= 0:
+                    Wavelength[ch-1] = f"Error code: {test_wavelength}"
+                else:
+                    Wavelength[ch-1] = f"{test_wavelength}"
+                #Manage sending the interferometer data
                 if (
                     selec_list[ch-1][0] == "Interferometer"
                     or selec_list[ch-1][0] == "Both Graphs"
                 ):
-                    test.randomPattern(ch)
-                    Interferometer[ch-1]=test.patternList[ch-1]
-                #     #comment out the following block for the local test
-                #     n = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
-                #     nn = wlmData.dll.GetPatternItemSize(wlmConst.cSignal1Interferometers)
-                #     wlmData.dll.SetPattern(
-                #         wlmConst.cSignal1Interferometers, wlmConst.cPatternEnable
-                #     )
-                #     X = wlmData.dll.GetPatternNum(ch, wlmConst.cSignal1Interferometers)
-                #     wlmData.dll.GetPatternDataNum(ch, wlmConst.cSignalAnalysisX, X)
-                #     Interferometer[ch-1] = list(np.ctypeslib.as_array(X, (n // nn,)))
+                    # test.randomPattern(ch)
+                    # Interferometer[ch-1]=test.patternList[ch-1]
+                    #comment out the following block for the local test
+                    n = wlmData.dll.GetPatternItemCount(wlmConst.cSignal1Interferometers)
+                    nn = wlmData.dll.GetPatternItemSize(wlmConst.cSignal1Interferometers)
+                    wlmData.dll.SetPattern(
+                        wlmConst.cSignal1Interferometers, wlmConst.cPatternEnable
+                    )
+                    X = wlmData.dll.GetPatternNum(ch, wlmConst.cSignal1Interferometers)
+                    wlmData.dll.GetPatternDataNum(ch, wlmConst.cSignalAnalysisX, X)
+                    Interferometer[ch-1] = list(np.ctypeslib.as_array(X, (n // nn,)))
         
         
         to_send = [Wavelength, Interferometer,exposures,pids,tgts]
@@ -252,10 +252,10 @@ def PID_calc():
             for i in range(8):
                 if PIDs[i][0]:
                     try:
-                        # #line for the machine run
-                        # test_wavelength = wlmData.dll.GetWavelengthNum(i+1, 0)
-                        #line for local test
-                        test_wavelength=test.GetWavelengthNum(i+1, 0)
+                        #line for the machine run
+                        test_wavelength = wlmData.dll.GetWavelengthNum(i+1, 0)
+                        # #line for local test
+                        # test_wavelength=test.GetWavelengthNum(i+1, 0)
                         if test_wavelength <= 100:
                             print(f"Error code: {test_wavelength}")
                         else:
