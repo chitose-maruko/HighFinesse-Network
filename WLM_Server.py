@@ -366,12 +366,14 @@ def start_server(host, port):
         counter +=1
 def autocalibrate():
     global CAL
+    HeNeval=632.9915
     CAL=True
     try:
         #pause all measurement before the calibration
         wlmData.dll.Operation(wlmConst.cCtrlStopAll)
         print('measurement paused for calibration')
-        calOut=wlmData.dll.Operation(wlmConst.cCtrlStartMeasurement)
+        calOut=wlmData.dll.Calibrate(wlmConst.cHeNe633, wlmConst.cReturnWavelengthVac,HeNeval,8)
+        wlmData.dll.Operation(wlmConst.cCtrlStartMeasurement)
         if calOut==0:
             print('calibration completed')
         else:
@@ -394,3 +396,5 @@ class ConnectionState():
         self.test =False
 client_dict={}
 start_server(host, port)
+
+
