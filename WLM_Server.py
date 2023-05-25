@@ -383,7 +383,7 @@ def autocalibrate():
     CAL=False
 def calibrationHandler():
     autocalibrate()
-    calPeriod = 1*60 #calibration period in seconds
+    calPeriod = 30*60 #calibration period in seconds
     while True:
         time.sleep(calPeriod)
         autocalibrate()
