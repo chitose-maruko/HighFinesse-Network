@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 # Code to connect to an established server through ethernet
@@ -37,6 +38,11 @@ except socket.error as e:
 #define global variable to keep track of updates made by user
 expo_flag=False
 pid_flag=False
+tgt_flag=False
+# Define another global variable to hold the target wavelengths, initialized to 0
+targets =8*["___"]
+# Define another global variable to contain PID control values
+PID_val = 8 * [[False, 0.0, 0.0, 0.0]]
 # Define global variable which will store the desired mode, selected exposure time of each channel,
 # and the PID output for each channel
 # Starting values are Off with 1 ms exposure time and 0.0 for PID output
@@ -49,15 +55,10 @@ selec_list = [
     ["Off", "1", None],
     ["Off", "1", None],
     ["Off", "1", None],
+    targets,
+    PID_val,
     [expo_flag,pid_flag,False]
 ]
-
-# Define another global variable to hold the target wavelengths, initialized to 0
-targets = [0, 0, 0, 0, 0, 0, 0, 0]
-
-# Define another global variable to contain PID control values
-PID_val = 8 * [[False, 0.0, 0.0, 0.0]]
-
 #Define another global variables to hold the boolean value of whether to stop the server or not
 Quit_bool = False
 
@@ -130,37 +131,37 @@ class Transmission(QtCore.QObject):
                     if len(wvl_error[i]) > 30:
                         wvl_error[i].pop(0)
 
-            # Time interval for PID
-            dt = time.perf_counter() - ti
+            # # Time interval for PID
+            # dt = time.perf_counter() - ti
 
-            # Calculate the PID function output
-            #system("cls||clear")
-            for i in range(8):
-                if PID_val[i][0] == True:
-                    try:
-                        integral[i] += wvl_error[i][-1] * dt
-                        derivative = (wvl_error[i][-1] - wvl_error[i][-2]) / dt
-                        pid_out = (
-                            float(PID_val[i][1]) * wvl_error[i][-1]
-                            + float(PID_val[i][2]) * integral[i]
-                            + float(PID_val[i][3]) * derivative
-                        )
+            # # Calculate the PID function output
+            # #system("cls||clear")
+            # for i in range(8):
+            #     if PID_val[i][0] == True:
+            #         try:
+            #             integral[i] += wvl_error[i][-1] * dt
+            #             derivative = (wvl_error[i][-1] - wvl_error[i][-2]) / dt
+            #             pid_out = (
+            #                 float(PID_val[i][1]) * wvl_error[i][-1]
+            #                 + float(PID_val[i][2]) * integral[i]
+            #                 + float(PID_val[i][3]) * derivative
+            #             )
 
-                        # If statements prevent voltage range in Toptica rack from being exceeded
-                        if pid_out < 4 and pid_out > -0.0285:
-                            selec_list[i][2] = pid_out
-                        if pid_out >= 4:
-                            selec_list[i][2] = 4.0
-                        if pid_out <= -0.0285:
-                            selec_list[i][2] = -0.0285
-                        print(f"Ch {i+1}: {selec_list[i][2]:.5f} V")
-                    except:
-                        print(f"Error in PID channel {i}")
-                # Don't compute PID if box not checked
-                elif PID_val[i] == False:
-                    selec_list[i][2] = None
-                    # resets integral
-                    integral[i] = 0
+            #             # If statements prevent voltage range in Toptica rack from being exceeded
+            #             if pid_out < 4 and pid_out > -0.0285:
+            #                 selec_list[i][2] = pid_out
+            #             if pid_out >= 4:
+            #                 selec_list[i][2] = 4.0
+            #             if pid_out <= -0.0285:
+            #                 selec_list[i][2] = -0.0285
+            #             #print(f"Ch {i+1}: {selec_list[i][2]:.5f} V")
+            #         except:
+            #             print(f"Error in PID channel {i}")
+            #     # Don't compute PID if box not checked
+            #     elif PID_val[i][0] == False:
+            #         selec_list[i][2] = None
+            #         # resets integral
+            #         integral[i] = 0
 
             # Send the data that has just been stored to another function for further operation
             upd_dict={
@@ -235,6 +236,7 @@ class Window(QtGui.QWidget):
 
             self.tgt_master[i] = QtGui.QLineEdit(parent=self)
             self.tgt_master[i].setStyleSheet("color: white")
+            self.tgt_master[i].textEdited.connect(self.flag_target_change)
             tgt_lbl[i] = QtGui.QLabel(f"Ch {i+1} Target Wavelength (nm):", parent=self)
             tgt_lbl[i].setStyleSheet("color: white")
 
@@ -246,6 +248,7 @@ class Window(QtGui.QWidget):
             expo_lbl[i].setStyleSheet("color: white")
 
             self.pid_master[i] = QtGui.QCheckBox(parent=self)
+            self.pid_master[i].stateChanged.connect(self.flag_pid_change)
             self.pid_master[i].setStyleSheet("color: black;" "background-color: grey;")
             pid_lbl[i] = QtGui.QLabel("Engage PID:")
             pid_lbl[i].setStyleSheet("color: white")
@@ -346,12 +349,22 @@ class Window(QtGui.QWidget):
             # Update global lists with user entered information
             selec_list[i][0] = self.menu_master[i].currentText()
             selec_list[i][1] = self.expo_master[i].text()
-            targets[i] = self.tgt_master[i].text()
+            selec_list[-3][i] = self.tgt_master[i].text()
+            if self.P[i].text()=="":
+                Kp =0
+            else:
+                Kp=self.P[i].text()
+            if self.I[i].text()=="":
+                Ki =0
+            else:
+                Ki=self.I[i].text()
+            if self.D[i].text()=="":
+                Kd =0
+            else:
+                Kd=self.D[i].text()
             PID_val[i] = [
                 self.pid_master[i].isChecked(),
-                self.P[i].text(),
-                self.I[i].text(),
-                self.D[i].text(),
+               Kp,Ki,Kd
             ]
 
             # Plot according to user requests
@@ -370,7 +383,7 @@ class Window(QtGui.QWidget):
                     self.inter.plot(data[0][i], name=f"Ch{i+1}", pen=self.color[i])
                 except:
                     pass
-
+        selec_list[-2]=PID_val
     # This functions runs the transmission class in another thread
     def worker_thread(self):
         self.thread = QtCore.QThread()
@@ -384,7 +397,10 @@ class Window(QtGui.QWidget):
         self.thread.start()
 
     def closeEvent(self, event):
+        global ClientSocket
         self.save_configs()
+        ClientSocket.shutdown(socket.SHUT_WR)
+        time.sleep(1)
 
         return super().closeEvent(event)
 
@@ -399,9 +415,19 @@ class Window(QtGui.QWidget):
                 self.P[i].setText(self.settings.value("P"))
                 self.I[i].setText(self.settings.value("I"))
                 self.D[i].setText(self.settings.value("D"))
+                selec_list[i][0] = self.menu_master[i].currentText()
+                selec_list[i][1] = self.expo_master[i].text()
+                selec_list[-3][i] = self.tgt_master[i].text()
+                selec_list[-2][i] = [
+                    self.pid_master[i].isChecked(),
+                    self.P[i].text(),
+                    self.I[i].text(),
+                    self.D[i].text(),
+            ]
                 self.settings.endGroup()
 
     def save_configs(self):
+
         for i in range(8):
             self.settings.beginGroup(str(i))
             self.settings.setValue("menu", self.menu_master[i].currentIndex())
@@ -419,21 +445,21 @@ class Window(QtGui.QWidget):
     def param_update(self,dictionary):
         #check the update for target wavelength
         if dictionary["target"][0]==True:
-            tgts=dictionary["target"][1:]
+            tgts=dictionary["target"][1]
             for i in range(8):
                 if tgts[i] != self.tgt_master[i].text():
-                    self.tgt_master[i].setText(tgts[i])
+                    self.tgt_master[i].setText(str(tgts[i]))
         if dictionary["PID"][0]==True:
-            pid_checks=dictionary["PID"][1:]
+            pid_checks=dictionary["PID"][1:][0]
             for i in range(8):
-                if pid_checks[i][0]!=self.pid_master[i].text():
-                    self.pid_master[i].setCheckState(pid_checks[i][0])
+                if pid_checks[i][0]!=self.pid_master[i].isChecked():
+                    self.pid_master[i].setChecked(pid_checks[i][0])
                 if pid_checks[i][1]!=self.P[i].text():
-                    self.P[i]=pid_checks[i][1]
+                    self.P[i].setText(str(pid_checks[i][1]))
                 if pid_checks[i][2]!=self.I[i].text():
-                    self.I[i]=pid_checks[i][2]
+                    self.I[i].setText(str(pid_checks[i][2]))
                 if pid_checks[i][3]!=self.D[i].text():
-                    self.D[i]=pid_checks[i][3]
+                    self.D[i].setText(str(pid_checks[i][3]))
         if dictionary["expo_t"][0] :
             expos=dictionary["expo_t"][1]
             for i in range(8):
@@ -448,6 +474,14 @@ class Window(QtGui.QWidget):
         selec_list[-1][0]=expo_flag
         counter =0
 
+    def flag_target_change(self):
+        global tgt_flag
+        global selec_list
+        global counter
+        tgt_flag=True
+        selec_list[-1][2]=tgt_flag
+        counter =0
+
     def flag_pid_change(self):
         global pid_flag
         global selec_list
@@ -455,7 +489,6 @@ class Window(QtGui.QWidget):
         pid_flag=True
         selec_list[-1][1]=pid_flag
         counter =0
-        print("PID changed")
 
 
 # Set up and run GUI
