@@ -328,8 +328,9 @@ def PID_calc():
                     
 
         for i in range(8):
-            output_PID(i+1,outputs[i])        
-            print(f"Ch {i+1}: {outputs[i]} V")
+            if PIDs[i][0]:
+                output_PID(i+1,outputs[i])        
+                print(f"Ch {i+1}: {outputs[i]} V")
 
             
         
