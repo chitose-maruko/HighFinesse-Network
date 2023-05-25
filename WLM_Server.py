@@ -307,39 +307,37 @@ def PID_calc():
                 
                           
                     try:
-                            integrals[i]+=errors_current[i]*dt
-                            derivative = (errors_current[i]-errors_prev[i])/dt
-                            pid_out = (float(PIDs[i][1]) * errors_current[i]
-                                        + float(PIDs[i][2]) * integrals[i]
-                                        + float(PIDs[i][3]) * derivative
-                                    ) +offsets[i]
+                        integrals[i]+=errors_current[i]*dt
+                        derivative = (errors_current[i]-errors_prev[i])/dt
+                        pid_out = (float(PIDs[i][1]) * errors_current[i]
+                                    + float(PIDs[i][2]) * integrals[i]
+                                    + float(PIDs[i][3]) * derivative
+                                ) +offsets[i]
+                        if pid_out <= 0:
+                            pid_out=0
+                        elif pid_out >= 5:
+                            pid_out=5.0
+                        outputs[i]=pid_out
+                        errors_prev[i]=errors_current[i]
                     except:
-                        print('lol')
-                try:
-                    if pid_out < 5 and pid_out > 0:
-                        output_PID(i+1,pid_out)
-                    elif pid_out >= 5:
-                        output_PID(i+1,4.99999)
-                        pid_out=5.0
-                    else:
-                        output_PID(i+1,0)
-                        pid_out=0
-                    print(f"Ch {i+1}: {pid_out} V")
-                    outputs[i]=pid_out
-                    errors_prev[i]=errors_current[i]
-                    print(pid_out)
-                    
-                except:
-                    pass
+                        print('PID calculation failed')
             else:
                 offsets[i]= outputs[i]
                 integrals[i]=0
+
+                    
+
+        for i in range(8):
+            output_PID(i+1,outputs[i])        
+            print(f"Ch {i+1}: {outputs[i]} V")
+
+            
         
 def output_PID(ch_num,vol_out):
     try:
         fpga_dac.dac(ch_num, vol_out)
     except:
-        print(f"Error in PID channel {i}")
+        print(f"Error in PID channel {ch_num}")
 
 
 # Lastly, create a function which starts the server

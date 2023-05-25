@@ -350,11 +350,21 @@ class Window(QtGui.QWidget):
             selec_list[i][0] = self.menu_master[i].currentText()
             selec_list[i][1] = self.expo_master[i].text()
             selec_list[-3][i] = self.tgt_master[i].text()
+            if self.P[i].text()=="":
+                Kp =0
+            else:
+                Kp=self.P[i].text()
+            if self.I[i].text()=="":
+                Ki =0
+            else:
+                Ki=self.I[i].text()
+            if self.D[i].text()=="":
+                Kd =0
+            else:
+                Kd=self.D[i].text()
             PID_val[i] = [
                 self.pid_master[i].isChecked(),
-                self.P[i].text(),
-                self.I[i].text(),
-                self.D[i].text(),
+               Kp,Ki,Kd
             ]
 
             # Plot according to user requests
@@ -374,7 +384,6 @@ class Window(QtGui.QWidget):
                 except:
                     pass
         selec_list[-2]=PID_val
-
     # This functions runs the transmission class in another thread
     def worker_thread(self):
         self.thread = QtCore.QThread()
