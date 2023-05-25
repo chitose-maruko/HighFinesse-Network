@@ -274,8 +274,8 @@ def PID_calc():
     ti = time.perf_counter()+0
     tis = 8*[ti]
     tfs=8*[0.0]
-    errors_prev=8*[[]]
-    errors_current=8*[[]]
+    errors_prev=8*[0]
+    errors_current=8*[0]
     integrals=8*[0.0]
     cts=0
     dtTot=0
@@ -297,49 +297,49 @@ def PID_calc():
                     pass
                 if PIDs[i][2]==0:
                     integrals[i]=0
-                if errors_current !=errors_prev:
+                if errors_current[i] !=errors_prev[i]:
                     tfs[i] = time.perf_counter()
                     dt = float(tfs[i]-tis[i])
                     dtTot+=dt
                     cts+=1
                     
                     tis[i]=tfs[i]
+                
+                          
                     try:
-
-                        error_now=errors_current[i]
-                        error_prev=errors_prev[i]
-                        integrals[i]+=error_now*dt
-                        derivative = (error_now-error_prev)/dt
-                        pid_out = (float(PIDs[i][1]) * error_now
-                                    + float(PIDs[i][2]) * integrals[i]
-                                    + float(PIDs[i][3]) * derivative
-                                ) +offsets[i]
-                        
+                            integrals[i]+=errors_current[i]*dt
+                            derivative = (errors_current[i]-errors_prev[i])/dt
+                            pid_out = (float(PIDs[i][1]) * errors_current[i]
+                                        + float(PIDs[i][2]) * integrals[i]
+                                        + float(PIDs[i][3]) * derivative
+                                    ) +offsets[i]
                     except:
-                        pass
-
+                        print('lol')
                 try:
-                    if pid_out < 4 and pid_out >= 0:
+                    if pid_out < 5 and pid_out > 0:
                         output_PID(i+1,pid_out)
-                    elif pid_out >= 4:
-                        output_PID(i+1,4.0)
+                    elif pid_out >= 5:
+                        output_PID(i+1,4.99999)
+                        pid_out=5.0
                     else:
                         output_PID(i+1,0)
-                    #print(f"Ch {i+1}: {selec_list[i][2]:.5f} V")
+                        pid_out=0
+                    print(f"Ch {i+1}: {pid_out} V")
                     outputs[i]=pid_out
+                    errors_prev[i]=errors_current[i]
+                    print(pid_out)
                     
                 except:
                     pass
-                        #print(f"Error in PID channel {i}")
             else:
                 offsets[i]= outputs[i]
                 integrals[i]=0
-        errors_prev=errors_current
+        
 def output_PID(ch_num,vol_out):
     try:
         fpga_dac.dac(ch_num, vol_out)
     except:
-        pass
+        print(f"Error in PID channel {i}")
 
 
 # Lastly, create a function which starts the server
@@ -372,7 +372,7 @@ def autocalibrate():
         #pause all measurement before the calibration
         wlmData.dll.Operation(wlmConst.cCtrlStopAll)
         print('measurement paused for calibration')
-        calOut=wlmData.dll.Calibrate(wlmConst.cHeNe633, wlmConst.cReturnWavelengthVac,HeNeval,8)
+        calOut=wlmData.dll.Calibration(wlmConst.cHeNe633, wlmConst.cReturnWavelengthVac,HeNeval,8)
         wlmData.dll.Operation(wlmConst.cCtrlStartMeasurement)
         if calOut==0:
             print('calibration completed')
